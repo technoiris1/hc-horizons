@@ -13,6 +13,7 @@
     import MenuItem from '$lib/components/MenuItem.svelte';
     import { fade, fly } from 'svelte/transition';
     import { quintOut } from 'svelte/easing';
+    import CircleOut from '$lib/components/anim/CircleOut.svelte';
 
     let activated = $state(false);
     let pressed = $state(false);
@@ -232,7 +233,7 @@
 
 <CircleIn />
 {#if showSlideOut}
-    <SlideOut />
+    <CircleOut />
 {/if}
 
 <BG class="flex flex-col overflow-hidden">
@@ -254,6 +255,11 @@
                 </div>
             {/if}
         </div>
+
+        <label class="disable-anim-checkbox">
+            <input type="checkbox" />
+            Disable animations
+        </label>
     {/if}
     {#if activated}
         <div class="flex flex-col h-full items-center gap-8 pb-8">
@@ -315,6 +321,25 @@
 </BG>
 
 <style>
+    .disable-anim-checkbox {
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        font-family: 'Bricolage Grotesque', sans-serif;
+        font-size: 14px;
+        color: black;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s ease;
+    }
+
+    .disable-anim-checkbox:hover {
+        opacity: 1;
+    }
+
     .tagline {
         font-family: 'Cook Widetype', sans-serif;
         font-size: 32px;
