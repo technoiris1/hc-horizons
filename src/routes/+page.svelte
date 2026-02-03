@@ -1,6 +1,7 @@
 <script lang="ts">
 	import BG from '$lib/components/BG.svelte';
 	import BobaText from '$lib/components/BobaText.svelte';
+	import TextWave from '$lib/components/TextWave.svelte';
 	import Stripes from '$lib/components/Stripes.svelte';
 	import Logo from '$lib/assets/Logo.svg';
     import playIcon from '$lib/assets/icons/yaya.svg';
@@ -257,7 +258,20 @@
 
 <BG class="flex flex-col overflow-hidden" {disableAnimations}>
     {#if !activated}
-        <div class="flex-1 flex flex-col justify-center absolute inset-0">
+        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+        <div class="flex-1 flex flex-col justify-center absolute inset-0 cursor-pointer" onclick={() => {
+            if (!stripesOutro) {
+                usingKeyboard = false;
+                pressed = true;
+                setTimeout(() => {
+                    stripesOutro = true;
+                    setTimeout(() => {
+                        showDetail();
+                        selectedCard = -1;
+                    }, 400);
+                }, 150);
+            }
+        }}>
             <div class="flex flex-col items-center justify-center px-16 pb-4">
                 <div out:captureLogoRect>
                     <img src={Logo} alt="Hack Club Horizon" class="w-full max-w-7xl" />
@@ -270,19 +284,7 @@
 
             {#if !stripesOutro}
                 <div class="flex flex-col items-center justify-center px-16 mt-8" out:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 100 }}>
-                    <BobaButton text="> CLICK  OR  PRESS  ENTER" fallbackWidth={360} {pressed} className="select-none cursor-pointer" wave {disableAnimations} onclick={() => {
-                        if (!stripesOutro) {
-                            usingKeyboard = false;
-                            pressed = true;
-                            setTimeout(() => {
-                                stripesOutro = true;
-                                setTimeout(() => {
-                                    showDetail();
-                                    selectedCard = -1;
-                                }, 400);
-                            }, 150);
-                        }
-                    }} />
+                    <BobaButton text="> CLICK  OR  PRESS  ENTER" fallbackWidth={360} {pressed} className="select-none" wave {disableAnimations} />
                 </div>
             {/if}
         </div>
@@ -299,7 +301,7 @@
                     <div in:animateLogoIn>
                         <img src={Logo} alt="Hack Club Horizon" class="h-24" />
                     </div>
-                    <p in:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 200 }} class="tagline">HACK CLUB'S <span class="underline">BIGGEST</span> EVENT</p>
+                    <p in:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 200 }} class="tagline"><TextWave text="HACK CLUB'S " disabled={disableAnimations} /><span class="underline"><TextWave text="BIGGEST" disabled={disableAnimations} offset={12} /></span><TextWave text=" EVENT" disabled={disableAnimations} offset={19} /></p>
                 </div>
                 <div in:animateStripesIn>
                     <Stripes small {disableAnimations} />
@@ -328,6 +330,7 @@
                 <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 600 }} bind:this={cardRefs[1]} onmouseenter={() => { usingKeyboard = false; selectedCard = 1; }}>
                     <MenuItem 
                         title="WHAT'S HORIZON?" 
+                        subtitle="LEARN MORE ABOUT THE EVENT!"
                         selected={selectedCard === 1}
                         preserveIcon
                         {disableAnimations}
@@ -340,6 +343,7 @@
                 <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 700 }} bind:this={cardRefs[2]} onmouseenter={() => { usingKeyboard = false; selectedCard = 2; }}>
                     <MenuItem 
                         title="WATCH THE VIDEO" 
+                        subtitle="SOMETHING SOMETHING SOMETHING IDK"
                         selected={selectedCard === 2}
                         preserveIcon
                         {disableAnimations}
