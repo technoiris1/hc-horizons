@@ -15,12 +15,12 @@
         email?: string;
         onSignup?: () => void;
         signupHint?: string;
+        emailFocused?: boolean;
     }
 
-    let { title, subtitle, selected = false, chevron = false, class: className = '', icon, preserveIcon = false, disableAnimations = false, showSignup = false, email = $bindable(''), onSignup, signupHint }: Props = $props();
+    let { title, subtitle, selected = false, chevron = false, class: className = '', icon, preserveIcon = false, disableAnimations = false, showSignup = false, email = $bindable(''), onSignup, signupHint, emailFocused = $bindable(false) }: Props = $props();
 
     let emailInput: HTMLInputElement;
-    let emailFocused = $state(false);
 
     const isValidEmail = $derived(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
     let showInvalidHint = $state(false);
@@ -68,7 +68,7 @@
                     onkeydown={handleEmailKeydown}
                     oninput={handleEmailInput}
                 />
-                <button class="signup-btn" onclick={(e) => { e.stopPropagation(); onSignup?.(); }}>SIGN UP</button>
+                <button class="signup-btn" class:valid={isValidEmail} onclick={(e) => { e.stopPropagation(); onSignup?.(); }}>SIGN UP</button>
             </div>
             {#if signupHint}
                 <p class="signup-hint" class:visible={selected && ((!email && !emailFocused) || (emailFocused && isValidEmail) || showInvalidHint)} class:error={showInvalidHint}>{showInvalidHint ? 'Please enter a valid email' : (emailFocused && isValidEmail ? 'Press enter to sign up' : signupHint)}</p>
@@ -257,6 +257,15 @@
 
     .signup-btn:hover {
         background-color: #e89a45;
+    }
+
+    .signup-btn.valid {
+        animation: white-blink 1s ease-in-out infinite;
+    }
+
+    @keyframes white-blink {
+        0%, 100% { background-color: #fdd9a8; }
+        50% { background-color: #fba74d; }
     }
 
     .signup-hint {

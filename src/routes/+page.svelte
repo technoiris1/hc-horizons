@@ -43,6 +43,7 @@
         localStorage.setItem('disableAnimations', String(disableAnimations));
     });
     let signupEmail = $state('');
+    let signupEmailFocused = $state(false);
 
     function activateJoinNow() {
         showSlideOut = true;
@@ -309,7 +310,7 @@
             </div>
 
             <div class="flex flex-col items-center gap-7 w-full px-10">
-                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 500 }} bind:this={cardRefs[0]} onmouseenter={() => { usingKeyboard = false; selectedCard = 0; }}>
+                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 500 }} bind:this={cardRefs[0]} onmouseenter={() => { if (!signupEmailFocused) { usingKeyboard = false; selectedCard = 0; } }}>
                     <MenuItem 
                         title="JOIN NOW" 
                         subtitle="START WORKING ON YOUR PROJECTS!"
@@ -319,6 +320,7 @@
                         {disableAnimations}
                         showSignup
                         bind:email={signupEmail}
+                        bind:emailFocused={signupEmailFocused}
                         onSignup={activateJoinNow}
                         signupHint={usingKeyboard ? "Press enter to enter your email" : "Click to enter your email"}
                     >
@@ -327,7 +329,7 @@
                         {/snippet}
                     </MenuItem>
                 </div>
-                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 600 }} bind:this={cardRefs[1]} onmouseenter={() => { usingKeyboard = false; selectedCard = 1; }}>
+                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 600 }} bind:this={cardRefs[1]} onmouseenter={() => { if (!signupEmailFocused) { usingKeyboard = false; selectedCard = 1; } }}>
                     <MenuItem 
                         title="WHAT'S HORIZON?" 
                         subtitle="LEARN MORE ABOUT THE EVENT!"
@@ -340,7 +342,7 @@
                         {/snippet}
                     </MenuItem>
                 </div>
-                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 700 }} bind:this={cardRefs[2]} onmouseenter={() => { usingKeyboard = false; selectedCard = 2; }}>
+                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 700 }} bind:this={cardRefs[2]} onmouseenter={() => { if (!signupEmailFocused) { usingKeyboard = false; selectedCard = 2; } }}>
                     <MenuItem 
                         title="WATCH THE VIDEO" 
                         subtitle="SOMETHING SOMETHING SOMETHING IDK"
