@@ -1,2 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Agdasima:wght@400;700&family=Bricolage+Grotesque:wght@400;600;700&display=swap');
 @import 'tailwindcss';
+
+@font-face {
+	font-family: 'Cook Widetype';
+	src: url('$lib/fonts/CookWidetype.woff2') format('woff2');
+	font-weight: normal;
+	font-style: normal;
+	font-display: swap;
+}
