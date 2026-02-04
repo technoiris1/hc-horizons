@@ -19,7 +19,7 @@
     let activated = $state(false);
     let pressed = $state(false);
     let transitioning = $state(false);
-    let stripesOutro = $state(false);
+    let isTransitioning = $state(false);
     let selectedCard = $state(0);
     let selectedElement = $state(-1); // -1 = card itself, 0+ = index within focusable elements
     let cardRefs: HTMLElement[] = [];
@@ -217,10 +217,10 @@
             }
 
             if (!activated) {
-                if (ev.key === 'Enter' && !stripesOutro) {
+                if (ev.key === 'Enter' && !isTransitioning) {
                     pressed = true;
                     setTimeout(() => {
-                        stripesOutro = true;
+                        isTransitioning = true;
                         setTimeout(showDetail, 400);
                     }, 150);
                 }
@@ -261,11 +261,11 @@
     {#if !activated}
         <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
         <div class="flex-1 flex flex-col justify-center absolute inset-0 cursor-pointer" onclick={() => {
-            if (!stripesOutro) {
+            if (!isTransitioning) {
                 usingKeyboard = false;
                 pressed = true;
                 setTimeout(() => {
-                    stripesOutro = true;
+                    isTransitioning = true;
                     setTimeout(() => {
                         showDetail();
                         selectedCard = -1;
@@ -278,12 +278,15 @@
                     <img src={Logo} alt="Hack Club Horizon" class="w-full max-w-7xl" />
                 </div>
             </div>
+            {#if !isTransitioning}
+                <p class="text-black font-cook text-center text-4xl tracking-widest mt-2 mb-4" out:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 100 }}>300+ PERSON HACKATHON IN SF • DATE XX-XX</p>
+            {/if}
 
             <div out:captureStripesRect>
-                <Stripes outro={stripesOutro} {disableAnimations} />
+                <Stripes outro={isTransitioning} {disableAnimations} />
             </div>
 
-            {#if !stripesOutro}
+            {#if !isTransitioning}
                 <div class="flex flex-col items-center justify-center px-16 mt-8" out:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 100 }}>
                     <BobaButton text="> CLICK  OR  PRESS  ENTER" fallbackWidth={360} {pressed} className="select-none" wave {disableAnimations} />
                 </div>
@@ -364,7 +367,7 @@
             <button 
                 in:fly={{ y: disableAnimations ? 0 : 20, duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 900 }}
                 class="absolute bottom-0 left-4 bg-transparent border-none cursor-pointer opacity-60 hover:opacity-100 transition-opacity duration-200"
-                onclick={() => { activated = false; stripesOutro = false; }}
+                onclick={() => { activated = false; isTransitioning = false; }}
             >
                 <BobaText text="< BACK" fontSize={24} {disableAnimations} />
             </button>

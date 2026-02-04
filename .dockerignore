@@ -1,7 +1,11 @@
 node_modules
-.svelte-kit
-build
+npm-debug.log
 .git
 .gitignore
+.env
+.DS_Store
+dist
+build
+.svelte-kit
 *.md
-.vscode
+!README.md

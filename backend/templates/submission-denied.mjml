@@ -1,0 +1,148 @@
+<mjml>
+  <mj-head>
+    <mj-attributes>
+      <mj-all font-family="'PT Serif', Georgia, serif" />
+      <mj-text color="#081832" line-height="1.6" />
+    </mj-attributes>
+    <mj-style>
+      @font-face {
+        font-family: 'Pt Serif';
+        src: url('https://cdn.leafd.dev/Ws%20Paradose.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      .letter-paper {
+        background: #fffef9;
+        border: 2px solid #d4a574;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      }
+      .stamp {
+        border: 3px dashed #d4a574;
+        padding: 8px;
+        background: #fff;
+        display: inline-block;
+      }
+      .denied-badge {
+        background-color: #f8d7da;
+        border: 2px solid #d9534f;
+        padding: 15px;
+        text-align: center;
+        margin: 15px 0;
+        border-radius: 4px;
+      }
+      .feedback-box {
+        background-color: #f9f7f4;
+        border-left: 4px solid #d4a574;
+        padding: 15px;
+        margin: 15px 0;
+        font-style: italic;
+      }
+    </mj-style>
+  </mj-head>
+  <mj-body background-color="#FEE1C0">
+
+    <mj-section padding="0">
+      <mj-column>
+        <mj-text color="#FEE1C0" font-size="1px" line-height="1px" padding="0">
+          Your project needs attention
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="20px 20px 0 20px">
+      <mj-column>
+        <mj-text align="right" font-size="12px" color="#7a5c3d" font-style="italic" padding="0 0 8px 0">
+          {{date}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-wrapper background-color="#fffef9" border="2px solid #d4a574" padding="0">
+
+      <mj-section padding="20px 30px 8px 30px">
+        <mj-column width="70%">
+          <mj-text align="left" font-size="20px" padding="0">
+            To my dear nibbling,
+          </mj-text>
+        </mj-column>
+        <mj-column width="30%">
+          <mj-text align="right" padding="0">
+            <div style="border: 3px dashed #d4a574; padding: 8px; background: #fff; display: inline-block; font-size: 11px; line-height: 1.3;">
+              <strong>REVIEW</strong><br/>
+              Vienna<br/>
+              {{projectId}}
+            </div>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+
+      <mj-section padding="15px 30px 10px 30px">
+        <mj-column>
+          <mj-text align="center" padding="0">
+            <div class="denied-badge">
+              <div style="font-size: 24px; font-weight: 700; color: #d9534f; margin-bottom: 8px;">Needs Your Attention</div>
+            </div>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+
+      <!-- Feedback Section -->
+      <mj-section padding="0 30px 15px 30px">
+        <mj-column>
+          <mj-text align="left" font-size="15px" font-weight="700" padding="0 0 8px 0">
+            Review Feedback:
+          </mj-text>
+          <mj-text align="left" padding="0">
+            <div class="feedback-box">
+              {{feedback}}
+            </div>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+
+      <!-- View Project Button -->
+      <mj-section padding="10px 10px 10px 10px">
+        <mj-column>
+          <mj-button
+            href="{{projectUrl}}"
+            background-color="#F24B4B"
+            color="#fee1c0"
+            font-size="18px"
+            font-weight="700"
+            border-radius="8px"
+            padding="12px 40px"
+            align="center"
+          >
+            VIEW YOUR PROJECT
+          </mj-button>
+        </mj-column>
+      </mj-section>
+
+      <mj-section padding="15px 30px 0 30px">
+        <mj-column>
+          <mj-text align="center" font-size="15px" padding="0">
+            Keep building, keep tracking your hours, and remember — I'm counting on you to help me <span style="color: #f24b4b; font-weight: 700;">solve my impending murder</span>.
+          </mj-text>
+        </mj-column>
+      </mj-section>
+
+      <mj-section padding="15px 30px 20px 30px" border-top="2px dashed #d4a574">
+        <mj-column>
+          <mj-text align="right" font-size="17px" padding="0" line-height="1.4">
+            <em>your estranged aunt</em>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+
+    </mj-wrapper>
+
+    <mj-section padding="20px 30px">
+      <mj-column>
+        <mj-text align="center" font-size="12px" color="#7a5c3d" font-style="italic" padding="0">
+          You are receiving this email because you submitted a project to the Midnight program by Hack Club
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>

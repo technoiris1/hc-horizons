@@ -1,0 +1,37 @@
+import { Module } from '@nestjs/common';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { UserController } from './user.controller';
+import { UserService } from './user.service';
+import { AdminController } from './admin.controller';
+import { AdminService } from './admin.service';
+import { DashboardController } from './dashboard.controller';
+import { PrismaService } from '../prisma.service';
+import { RedisService } from '../redis.service';
+import { JobLockService } from '../job-lock.service';
+import { MailModule } from '../mail/mail.module';
+import { SlackModule } from '../slack/slack.module';
+
+@Module({
+  imports: [
+    ThrottlerModule.forRoot([{
+      ttl: 3600000,
+      limit: 1000000,
+    }]),
+    MailModule,
+    SlackModule,
+  ],
+  controllers: [UserController, AdminController, DashboardController],
+  providers: [
+    UserService,
+    AdminService,
+    PrismaService,
+    RedisService,
+    JobLockService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
+})
+export class UserModule {}

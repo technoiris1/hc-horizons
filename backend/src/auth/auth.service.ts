@@ -1,0 +1,577 @@
+import { Injectable, UnauthorizedException, BadRequestException, ForbiddenException, HttpException, HttpStatus } from '@nestjs/common';
+import { PrismaService } from '../prisma.service';
+import { MailService } from '../mail/mail.service';
+import { LoginDto } from './dto/login.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { CompleteProfileDto } from './dto/complete-profile.dto';
+import { randomBytes, randomUUID, randomInt } from 'crypto';
+import { Role } from '../enums/role.enum';
+import { RedisService } from '../redis.service';
+
+@Injectable()
+export class AuthService {
+  private readonly OTP_EXPIRY_MS = 600000;
+  private readonly SESSION_EXPIRY_MS = 21 * 24 * 60 * 60 * 1000; 
+
+  constructor(
+    private prisma: PrismaService,
+    private mailService: MailService,
+    private redisService: RedisService,
+  ) {}
+
+  async requestOtp(loginDto: LoginDto) {
+    const { email, referralCode } = loginDto;
+
+    const sendAttemptCount = await this.redisService.increment(
+      `otp:send:${email}`,
+      3600,
+    );
+
+    if (sendAttemptCount > 10) {
+      throw new HttpException('You are ratelimited. Please try again later.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    const otp = this.generateOtp();
+    const expiresAt = new Date(Date.now() + this.OTP_EXPIRY_MS);
+
+    let existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!existingUser) {
+      const hackatimeAccount = await this.checkHackatimeAccount(email);
+      
+      let firstName = 'Temporary';
+      let lastName = 'User';
+      let rafflePos: string | null = null;
+      let birthday = new Date('2000-01-01');
+
+      try {
+        const airtableUser = await this.prisma.$queryRaw<Array<{
+          first_name: string | null;
+          last_name: string | null;
+          code: string | null;
+          birthday: Date | null;
+        }>>`
+          SELECT first_name, last_name, CAST(code AS TEXT) as code, birthday
+          FROM users_airtable
+          WHERE email = ${email}
+          LIMIT 1
+        `;
+
+        if (airtableUser && airtableUser.length > 0) {
+          firstName = airtableUser[0].first_name ?? firstName;
+          lastName = airtableUser[0].last_name ?? lastName;
+          rafflePos = airtableUser[0].code ?? null;
+          if (airtableUser[0].birthday) {
+            birthday = new Date(airtableUser[0].birthday);
+          }
+        } else {
+          const maxUserCodeResult = await this.prisma.$queryRaw<Array<{
+            max_code: string | null;
+          }>>`
+            SELECT CAST(MAX(CAST(raffle_pos AS INTEGER)) AS TEXT) as max_code
+            FROM users
+            WHERE raffle_pos IS NOT NULL AND raffle_pos ~ '^[0-9]+$'
+          `;
+
+          const maxAirtableCodeResult = await this.prisma.$queryRaw<Array<{
+            max_code: string | null;
+          }>>`
+            SELECT CAST(MAX(code) AS TEXT) as max_code
+            FROM users_airtable
+          `;
+
+          const maxUserCode = maxUserCodeResult && maxUserCodeResult.length > 0 && maxUserCodeResult[0].max_code
+            ? parseInt(maxUserCodeResult[0].max_code, 10)
+            : 0;
+
+          const maxAirtableCode = maxAirtableCodeResult && maxAirtableCodeResult.length > 0 && maxAirtableCodeResult[0].max_code
+            ? parseInt(maxAirtableCodeResult[0].max_code, 10)
+            : 0;
+
+          const maxCode = Math.max(maxUserCode, maxAirtableCode);
+          rafflePos = (maxCode + 1).toString();
+        }
+      } catch (error) {
+        console.error('Error checking users_airtable:', error);
+      }
+      
+      existingUser = await this.prisma.user.create({
+        data: {
+          email,
+          firstName,
+          lastName,
+          birthday,
+          role: 'user',
+          hackatimeAccount: hackatimeAccount?.toString() || null,
+          referralCode: referralCode || null,
+          rafflePos,
+        },
+      });
+    } else {
+      const updateData: any = {};
+      if (referralCode && !existingUser.referralCode) {
+        updateData.referralCode = referralCode;
+      }
+      
+      if (Object.keys(updateData).length > 0) {
+        existingUser = await this.prisma.user.update({
+          where: { userId: existingUser.userId },
+          data: updateData,
+        });
+      }
+    }
+
+    await this.prisma.userSession.deleteMany({
+      where: { userId: existingUser.userId },
+    });
+    
+    const session = await this.prisma.userSession.create({
+      data: {
+        userId: existingUser.userId,
+        otpCode: otp,
+        otpExpiresAt: expiresAt,
+        expiresAt: new Date(Date.now() + this.SESSION_EXPIRY_MS),
+      },
+    });
+
+    const otpEmailHtml = this.mailService.generateOtpEmailHtml(otp);
+    await this.mailService.sendImmediateEmail(
+      email,
+      otpEmailHtml,
+      'Your OTP Code'
+    );
+
+    return { message: 'OTP sent to your email', sessionId: session.id };
+  }
+
+  async verifyOtp(verifyOtpDto: VerifyOtpDto, clientIp?: string) {
+    const { email, otp } = verifyOtpDto;
+    const rateLimitMessage = 'You are ratelimited. Please regenerate a new OTP in a few minutes and try again.';
+
+    const normalizedIp = this.normalizeIp(clientIp);
+    const ipAttemptCount = await this.redisService.increment(
+      `otp:ip:${normalizedIp}`,
+      600,
+    );
+
+    if (ipAttemptCount > 40) {
+      throw new HttpException(rateLimitMessage, HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    const emailAttemptCount = await this.redisService.increment(
+      `otp:verify:${email}`,
+      600,
+    );
+
+    if (emailAttemptCount > 20) {
+      throw new HttpException(rateLimitMessage, HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    const session = await this.prisma.userSession.findFirst({
+      where: {
+        otpCode: otp,
+        otpExpiresAt: { gt: new Date() },
+        isVerified: false,
+        user: {
+          email: email,
+        },
+      },
+      include: { user: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!session) {
+      throw new UnauthorizedException('Invalid or expired OTP');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    await this.prisma.userSession.update({
+      where: { id: session.id },
+      data: {
+        isVerified: true,
+        verifiedAt: new Date(),
+      },
+    });
+
+    await this.redisService.del(`otp:verify:${email}`);
+
+    const user = session.user;
+    
+    if (!user) {
+      throw new BadRequestException('User not found in session');
+    }
+
+    const isNewUser = !user.onboardComplete || user.firstName === 'Temporary';
+
+    if (isNewUser) {
+      return {
+        message: 'OTP verified. Please complete your profile.',
+        sessionId: session.id,
+        isNewUser: true,
+        email: user.email,
+      };
+    } else {
+      if (this.calculateAge(user.birthday) >= 19) {
+        throw new ForbiddenException('You must be under 19 to sign in.');
+      }
+      return {
+        message: 'OTP verified successfully',
+        isNewUser: false,
+        user: {
+          userId: user.userId,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+        sessionId: session.id,
+      };
+    }
+  }
+
+  async completeProfile(completeProfileDto: CompleteProfileDto, sessionId: string, email: string) {
+    const { firstName, lastName, birthday, addressLine1, addressLine2, city, state, country, zipCode, airtableRecId } = completeProfileDto;
+
+    const session = await this.prisma.userSession.findUnique({
+      where: { id: sessionId },
+      include: { user: true },
+    });
+
+    if (!session || !session.isVerified) {
+      throw new UnauthorizedException('Invalid session');
+    }
+
+    if (!session.user) {
+      throw new BadRequestException('User not found in session');
+    }
+
+    const defaultBirthday = new Date('2000-01-01');
+    const isTemporaryUser = session.user.firstName === 'Temporary';
+    const needsBirthday = session.user.birthday.getTime() === defaultBirthday.getTime();
+    
+    if (!isTemporaryUser && !needsBirthday) {
+      throw new BadRequestException('User profile already completed');
+    }
+
+    const birthDate = new Date(birthday);
+    if (Number.isNaN(birthDate.getTime())) {
+      throw new BadRequestException('Invalid birthday');
+    }
+    if (this.calculateAge(birthDate) >= 19) {
+      throw new ForbiddenException('You must be under 19 to participate.');
+    }
+
+    const updateData: any = {
+      birthday: birthDate,
+      addressLine1,
+      addressLine2,
+      city,
+      state,
+      country,
+      zipCode,
+      airtableRecId,
+      onboardedAt: new Date(),
+    };
+
+    if (isTemporaryUser) {
+      updateData.firstName = firstName;
+      updateData.lastName = lastName;
+    }
+
+    const user = await this.prisma.user.update({
+      where: { userId: session.user.userId },
+      data: updateData,
+    });
+
+    return {
+      message: 'Profile completed successfully',
+      user: {
+        userId: user.userId,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+    };
+  }
+
+  async getCurrentUser(sessionId: string) {
+    const session = await this.prisma.userSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        user: {
+          select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            birthday: true,
+            role: true,
+            onboardComplete: true,
+            onboardedAt: true,
+            addressLine1: true,
+            addressLine2: true,
+            city: true,
+            state: true,
+            country: true,
+            zipCode: true,
+            airtableRecId: true,
+            hackatimeAccount: true,
+            referralCode: true,
+            rafflePos: true,
+            slackUserId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+
+    if (!session || !session.isVerified || session.expiresAt < new Date()) {
+      throw new UnauthorizedException('Invalid or expired session');
+    }
+
+    return session.user;
+  }
+
+  async getRafflePos(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: { rafflePos: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return { rafflePos: user.rafflePos };
+  }
+
+  async completeOnboarding(userId: number) {
+    const user = await this.prisma.user.update({
+      where: { userId },
+      data: { onboardComplete: true },
+    });
+
+    return {
+      message: 'Onboarding completed successfully',
+      user: {
+        userId: user.userId,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        onboardComplete: user.onboardComplete,
+      },
+    };
+  }
+
+  async getOnboardingStatus(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: { 
+        onboardComplete: true,
+        firstName: true,
+        lastName: true,
+        birthday: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const defaultBirthday = new Date('2000-01-01');
+    const needsBirthday = user.birthday.getTime() === defaultBirthday.getTime();
+    const isTemporaryUser = user.firstName === 'Temporary';
+
+    return {
+      onboardComplete: user.onboardComplete,
+      needsBirthday,
+      isTemporaryUser,
+      hasPrefilledData: !isTemporaryUser && !needsBirthday,
+    };
+  }
+
+  private generateOtp(): string {
+    return randomInt(100000, 999999).toString();
+  }
+
+  private normalizeIp(ip?: string): string {
+    if (!ip) return 'unknown';
+    return ip.split(',')[0].trim().replace(/[^a-zA-Z0-9:\.\-]/g, '') || 'unknown';
+  }
+
+  async checkHackatimeAccount(email: string): Promise<number | null> {
+    const STATS_API_KEY = process.env.STATS_API_KEY;
+
+    console.log('=== CHECKING HACKATIME ACCOUNT ===');
+    console.log('Email:', email);
+    console.log('STATS_API_KEY configured:', !!STATS_API_KEY);
+
+    if (!STATS_API_KEY) {
+      console.warn('STATS_API_KEY not configured, skipping Hackatime lookup');
+      return null;
+    }
+
+    try {
+      const encodedEmail = encodeURIComponent(email);
+      const url = `https://hackatime.hackclub.com/api/v1/users/lookup_email/${encodedEmail}`;
+
+      console.log('Looking up email via Hackatime API...');
+
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${STATS_API_KEY}`,
+        },
+      });
+
+      console.log('Response status:', res.status);
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          console.log(`✗ No Hackatime account found for ${email}`);
+          return null;
+        }
+        console.error('Failed to check Hackatime account:', res.status);
+        return null;
+      }
+
+      const data = await res.json();
+      console.log('Response data:', JSON.stringify(data, null, 2));
+
+      if (data.user_id) {
+        console.log(`✓ Found Hackatime account for ${email}: ${data.user_id}`);
+        return data.user_id;
+      }
+
+      console.log(`✗ No Hackatime account found for ${email}`);
+      return null;
+    } catch (error) {
+      console.error('Error checking Hackatime account:', error);
+      return null;
+    }
+  }
+
+  async sendHackatimeLinkOtp(userId: number, email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const hackatimeAccountId = await this.checkHackatimeAccount(email);
+
+    if (!hackatimeAccountId) {
+      throw new BadRequestException('No Hackatime account found with this email');
+    }
+
+    const linkedUser = await this.prisma.user.findFirst({
+      where: {
+        hackatimeAccount: hackatimeAccountId.toString(),
+        NOT: { userId },
+      },
+      select: { userId: true },
+    });
+
+    if (linkedUser) {
+      throw new BadRequestException('This Hackatime account is already linked to another user');
+    }
+
+    const otp = this.generateOtp();
+    const expiresAt = new Date(Date.now() + this.OTP_EXPIRY_MS);
+
+    const existingOtp = await this.prisma.hackatimeLinkOtp.findFirst({
+      where: { userId },
+    });
+
+    if (existingOtp) {
+      await this.prisma.hackatimeLinkOtp.delete({
+        where: { id: existingOtp.id },
+      });
+    }
+
+    await this.prisma.hackatimeLinkOtp.create({
+      data: {
+        userId,
+        email,
+        otpCode: otp,
+        expiresAt,
+      },
+    });
+
+    console.log('=== SENDING HACKATIME LINK OTP ===');
+    console.log('Email:', email);
+    console.log('OTP:', otp);
+
+    const otpEmailHtml = this.mailService.generateOtpEmailHtml(otp);
+    console.log('Calling sendImmediateEmail with type: hackatime-link-otp');
+    await this.mailService.sendImmediateEmail(
+      email,
+      otpEmailHtml,
+      'Link Your Hackatime Account',
+      {
+        type: 'hackatime-link-otp',
+      }
+    );
+    console.log('Email sent successfully');
+
+    return { message: 'Verification code sent to your email' };
+  }
+
+  async verifyHackatimeLinkOtp(userId: number, otp: string) {
+    const otpRecord = await this.prisma.hackatimeLinkOtp.findFirst({
+      where: {
+        userId,
+        otpCode: otp,
+        expiresAt: { gt: new Date() },
+        isUsed: false,
+      },
+    });
+
+    if (!otpRecord) {
+      throw new UnauthorizedException('Invalid or expired verification code');
+    }
+
+    const hackatimeAccount = await this.checkHackatimeAccount(otpRecord.email);
+
+    if (!hackatimeAccount) {
+      throw new BadRequestException('No Hackatime account found with this email');
+    }
+
+    await this.prisma.user.update({
+      where: { userId },
+      data: {
+        hackatimeAccount: hackatimeAccount.toString(),
+      },
+    });
+
+    await this.prisma.hackatimeLinkOtp.update({
+      where: { id: otpRecord.id },
+      data: {
+        isUsed: true,
+        usedAt: new Date(),
+      },
+    });
+
+    return {
+      message: 'Hackatime account linked successfully',
+      hackatimeAccountId: hackatimeAccount,
+    };
+  }
+
+  private calculateAge(birthday: Date) {
+    const today = new Date();
+    let age = today.getFullYear() - birthday.getFullYear();
+    const monthDiff = today.getMonth() - birthday.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthday.getDate())) {
+      age -= 1;
+    }
+    return age;
+  }
+}
