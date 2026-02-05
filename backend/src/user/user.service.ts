@@ -1,7 +1,6 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { MailService } from '../mail/mail.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { randomBytes } from 'crypto';
 
@@ -160,95 +159,6 @@ export class UserService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-  }
-
-  async createUser(createUserDto: CreateUserDto) {
-    const { email, firstName, lastName } = createUserDto;
-
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      throw new HttpException(
-        'User with this email already exists',
-        HttpStatus.CONFLICT,
-      );
-    }
-
-    let finalFirstName = firstName;
-    let finalLastName = lastName;
-    let rafflePos: string | null = null;
-    let finalBirthday = new Date('2000-01-01');
-
-    try {
-      const airtableUser = await this.prisma.$queryRaw<Array<{
-        first_name: string;
-        last_name: string;
-        code: string;
-        birthday: Date;
-      }>>`
-        SELECT first_name, last_name, CAST(code AS TEXT) as code, birthday
-        FROM users_airtable
-        WHERE email = ${email}
-        LIMIT 1
-      `;
-
-      if (airtableUser && airtableUser.length > 0) {
-        finalFirstName = airtableUser[0].first_name;
-        finalLastName = airtableUser[0].last_name;
-        rafflePos = airtableUser[0].code || null;
-        if (airtableUser[0].birthday) {
-          finalBirthday = new Date(airtableUser[0].birthday);
-        }
-      } else {
-        const maxUserCodeResult = await this.prisma.$queryRaw<Array<{
-          max_code: string | null;
-        }>>`
-          SELECT CAST(MAX(CAST(raffle_pos AS INTEGER)) AS TEXT) as max_code
-          FROM users
-          WHERE raffle_pos IS NOT NULL AND raffle_pos ~ '^[0-9]+$'
-        `;
-
-        const maxAirtableCodeResult = await this.prisma.$queryRaw<Array<{
-          max_code: string | null;
-        }>>`
-          SELECT CAST(MAX(code) AS TEXT) as max_code
-          FROM users_airtable
-        `;
-
-        const maxUserCode = maxUserCodeResult && maxUserCodeResult.length > 0 && maxUserCodeResult[0].max_code
-          ? parseInt(maxUserCodeResult[0].max_code, 10)
-          : 0;
-
-        const maxAirtableCode = maxAirtableCodeResult && maxAirtableCodeResult.length > 0 && maxAirtableCodeResult[0].max_code
-          ? parseInt(maxAirtableCodeResult[0].max_code, 10)
-          : 0;
-
-        const maxCode = Math.max(maxUserCode, maxAirtableCode);
-        rafflePos = (maxCode + 1).toString();
-      }
-    } catch (error) {
-      console.error('Error checking users_airtable:', error);
-    }
-
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        firstName: finalFirstName,
-        lastName: finalLastName,
-        birthday: finalBirthday,
-        rafflePos,
-      },
-    });
-
-    return {
-      userId: user.userId,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      createdAt: user.createdAt,
-    };
   }
 
   async updateUser(userId: number, updateUserDto: UpdateUserDto) {

@@ -1,10 +1,7 @@
-import { Controller, Post, Body, Get, UseGuards, Req, Res } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Req, Res, Query } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
-import { CompleteProfileDto } from './dto/complete-profile.dto';
 import { AuthGuard } from './auth.guard';
 
 @Controller('api/user/auth')
@@ -13,52 +10,20 @@ export class AuthController {
 
   constructor(private authService: AuthService) {}
 
-  @Post('login')
-  async requestOtp(@Body() loginDto: LoginDto) {
-    return this.authService.requestOtp(loginDto);
+  @Get('login')
+  async getAuthUrl(@Query('referralCode') referralCode?: string) {
+    const url = this.authService.getAuthUrl(referralCode);
+    return { url };
   }
 
-  @Post('verify-otp')
-  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const forwarded = (req.headers['x-forwarded-for'] as string) || req.ip || req.socket.remoteAddress || '';
-    const result = await this.authService.verifyOtp(verifyOtpDto, forwarded);
-    
-    if (result.sessionId) {
-      const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'strict' as const : 'lax' as const,
-        path: '/',
-        domain: process.env.COOKIE_DOMAIN || (process.env.NODE_ENV === 'production' ? undefined : 'localhost'),
-      };
-
-      res.cookie('sessionId', result.sessionId, {
-        ...cookieOptions,
-        maxAge: this.SESSION_EXPIRY_MS,
-      });
-      
-      if (result.isNewUser && result.email) {
-        res.cookie('email', result.email, {
-          ...cookieOptions,
-          maxAge: 10 * 60 * 1000,
-        });
-      }
-    }
-    
-    return result;
-  }
-
-  @Post('complete-profile')
-  async completeProfile(
-    @Body() completeProfileDto: CompleteProfileDto,
-    @Req() req: Request,
+  @Get('callback')
+  async handleCallback(
+    @Query('code') code: string,
+    @Query('state') state: string | undefined,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const sessionId = req.cookies.sessionId;
-    const email = req.cookies.email;
-    
-    const result = await this.authService.completeProfile(completeProfileDto, sessionId, email);
-    
+    const result = await this.authService.handleCallback(code, state);
+
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -66,9 +31,19 @@ export class AuthController {
       path: '/',
       domain: process.env.COOKIE_DOMAIN || (process.env.NODE_ENV === 'production' ? undefined : 'localhost'),
     };
-    
-    res.clearCookie('email', cookieOptions);
-    
+
+    res.cookie('sessionId', result.sessionId, {
+      ...cookieOptions,
+      maxAge: this.SESSION_EXPIRY_MS,
+    });
+
+    if (result.isNewUser) {
+      res.cookie('email', result.user.email, {
+        ...cookieOptions,
+        maxAge: 10 * 60 * 1000,
+      });
+    }
+
     return result;
   }
 
@@ -88,7 +63,9 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(AuthGuard)
-  async logout(@Res({ passthrough: true }) res: Response) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const sessionId = req.cookies.sessionId;
+
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -99,7 +76,8 @@ export class AuthController {
 
     res.clearCookie('sessionId', cookieOptions);
     res.clearCookie('email', cookieOptions);
-    return { message: 'Logged out successfully' };
+
+    return this.authService.logout(sessionId);
   }
 
   @Post('complete-onboarding')

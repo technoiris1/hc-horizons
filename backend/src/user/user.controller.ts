@@ -3,7 +3,6 @@ import { Throttle } from '@nestjs/throttler';
 import { UserService } from './user.service';
 import { InitialRsvpDto } from './dto/initial-rsvp.dto';
 import { CompleteRsvpDto } from './dto/complete-rsvp.dto';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { SlackService } from '../slack/slack.service';
@@ -19,12 +18,6 @@ export class UserController {
   @Get()
   getHealth() {
     return this.userService.getHealth();
-  }
-
-  @Post('api/user')
-  @HttpCode(201)
-  async createUser(@Body() createUserDto: CreateUserDto) {
-    return this.userService.createUser(createUserDto);
   }
 
   @Put('api/user')

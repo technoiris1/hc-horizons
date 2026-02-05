@@ -9,28 +9,40 @@ datasource db {
 
 model User {
   userId          Int           @id @default(autoincrement()) @map("user_id")
-  email           String        @unique
+
+  hcaId           String        @unique @map("hca_id")
   firstName       String        @map("first_name")
   lastName        String        @map("last_name")
-  birthday        DateTime      @db.Date
+  email           String        @unique
+  birthday        DateTime?     @db.Date
+  slackUserId     String?       @unique @map("slack_user_id")
+  verificationStatus String?    @map("verification_status")
+
   role            String        @default("user")
+
   onboardComplete Boolean       @default(false) @map("onboard_complete")
   onboardedAt     DateTime?     @map("onboarded_at")
+
   addressLine1    String?       @map("address_line_1")
   addressLine2    String?       @map("address_line_2")
   city            String?
   state           String?
   country         String?
   zipCode         String?       @map("zip_code")
+
   airtableRecId   String?       @map("airtable_rec_id")
+
   hackatimeAccount String?      @map("hackatime_account")
+
   referralCode    String?       @map("referral_code")
   rafflePos       String?       @map("raffle_pos")
-  slackUserId     String?       @unique @map("slack_user_id")
+
   isFraud         Boolean       @default(false) @map("is_fraud")
   isSus           Boolean       @default(false) @map("is_sus")
+
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
+
   projects        Project[]
   sessions        UserSession[]
   editRequests    EditRequest[]
@@ -88,18 +100,13 @@ model Submission {
 }
 
 model UserSession {
-  id           String    @id @default(uuid())
-  userId       Int       @map("user_id")
-  otpCode      String    @map("otp_code")
-  otpExpiresAt DateTime  @map("otp_expires_at")
-  isVerified   Boolean   @default(false) @map("is_verified")
-  verifiedAt   DateTime? @map("verified_at")
-  expiresAt    DateTime  @map("expires_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  user         User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@index([userId])
-  @@index([otpCode])
   @@map("user_sessions")
 }
 
