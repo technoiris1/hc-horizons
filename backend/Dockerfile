@@ -25,12 +25,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/backend/node_modules ./backend/node_modules
-COPY --from=builder /app/backend/dist ./backend/dist
-COPY --from=builder /app/backend/package.json ./backend/package.json
-COPY --from=builder /app/backend/prisma ./backend/prisma
-COPY --from=builder /app/backend/generated ./backend/generated
+COPY --from=deps /app/backend/node_modules ./node_modules
+COPY --from=builder /app/backend/dist ./dist
+COPY --from=builder /app/backend/package.json ./package.json
+COPY --from=builder /app/backend/prisma ./prisma
+COPY --from=builder /app/backend/generated ./generated
 
 EXPOSE 3002
 
-CMD ["node", "backend/dist/main"]
+CMD ["node", "dist/main"]
