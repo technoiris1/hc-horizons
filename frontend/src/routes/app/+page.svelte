@@ -7,5 +7,6 @@
 
 <CircleIn />
 
-<BG class="flex flex-col overflow-hidden" {disableAnimations}>
+<BG class="flex flex-col overflow-hidden items-center justify-center" {disableAnimations}>
+    <img src="/image.png" alt="" class="max-w-full max-h-full object-contain" />
 </BG>

@@ -43,6 +43,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Health check endpoint */
         get: operations["UserController_getHealth"];
         put?: never;
         post?: never;
@@ -60,6 +61,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        /** Update current user profile */
         put: operations["UserController_updateUser"];
         post?: never;
         delete?: never;
@@ -75,6 +77,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get unlinked Hackatime projects for current user */
         get: operations["UserController_getHackatimeProjects"];
         put?: never;
         post?: never;
@@ -91,6 +94,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get linked Hackatime projects for a specific project */
         get: operations["UserController_getHackatimeProject"];
         put?: never;
         post?: never;
@@ -107,6 +111,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get all Hackatime projects for current user */
         get: operations["UserController_getAllHackatimeProjects"];
         put?: never;
         post?: never;
@@ -123,6 +128,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get total Hackatime hours since now for current user */
         get: operations["UserController_getTotalNowHackatimeHours"];
         put?: never;
         post?: never;
@@ -139,6 +145,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get total approved hours for current user */
         get: operations["UserController_getTotalApprovedHours"];
         put?: never;
         post?: never;
@@ -157,6 +164,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Recalculate Hackatime hours for current user */
         post: operations["UserController_recalculateNowHackatimeHours"];
         delete?: never;
         options?: never;
@@ -171,6 +179,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Check Hackatime account status for current user */
         get: operations["UserController_checkHackatimeAccount"];
         put?: never;
         post?: never;
@@ -189,6 +198,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Link Slack account with token */
         post: operations["UserController_linkSlackAccount"];
         delete?: never;
         options?: never;
@@ -332,7 +342,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Handle HCA OAuth callback */
+        /** Handle HCA OAuth callback and redirect to app */
         get: operations["AuthController_handleCallback"];
         put?: never;
         post?: never;
@@ -1305,17 +1315,79 @@ export interface components {
             rafflePosition?: number;
             stickerToken?: string;
         };
+        HealthResponse: {
+            /** @description Health status message */
+            status: string;
+        };
         UpdateUserDto: {
+            /** @description User first name */
             firstName?: string;
+            /** @description User last name */
             lastName?: string;
+            /** @description User birthday in ISO format */
             birthday?: string;
+            /** @description Address line 1 */
             addressLine1?: string;
+            /** @description Address line 2 */
             addressLine2?: string;
+            /** @description City */
             city?: string;
+            /** @description State or province */
             state?: string;
+            /** @description Country */
             country?: string;
+            /** @description Zip or postal code */
             zipCode?: string;
+            /** @description Airtable record ID */
             airtableRecId?: string;
+        };
+        UpdateUserResponse: {
+            /** @description Whether the update was successful */
+            success: boolean;
+            /** @description Response message */
+            message: string;
+        };
+        HackatimeProjectResponse: {
+            /** @description Project ID */
+            id: number;
+            /** @description Project name */
+            name: string;
+            /** @description Total seconds logged */
+            totalSeconds?: number;
+        };
+        HackatimeProjectsResponse: {
+            /** @description List of Hackatime projects */
+            projects: components["schemas"]["HackatimeProjectResponse"][];
+        };
+        TotalNowHackatimeHoursResponse: {
+            /** @description Total Hackatime hours since now */
+            totalNowHackatimeHours: number;
+        };
+        TotalApprovedHoursResponse: {
+            /** @description Total approved hours */
+            totalApprovedHours: number;
+        };
+        RecalculateHoursResponse: {
+            /** @description Whether recalculation was successful */
+            success: boolean;
+            /** @description Response message */
+            message?: string;
+        };
+        HackatimeAccountStatusResponse: {
+            /** @description Whether a Hackatime account exists */
+            exists: boolean;
+            /** @description Whether the account is linked */
+            linked?: boolean;
+        };
+        SlackLinkDto: {
+            /** @description Slack linking token */
+            token: string;
+        };
+        SlackLinkResponse: {
+            /** @description Whether linking was successful */
+            success: boolean;
+            /** @description Response message */
+            message: string;
         };
         AdminLoginDto: {
             /** Format: email */
@@ -1329,17 +1401,6 @@ export interface components {
         AuthUrlResponse: {
             /** @description HCA OAuth authorization URL */
             url: string;
-        };
-        UserBasic: {
-            userId: number;
-            email: string;
-            firstName: string;
-            lastName: string;
-        };
-        AuthCallbackResponse: {
-            sessionId: string;
-            isNewUser: boolean;
-            user: components["schemas"]["UserBasic"];
         };
         LogoutResponse: {
             message: string;
@@ -1508,11 +1569,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Service is healthy */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["HealthResponse"];
+                };
             };
         };
     };
@@ -1529,11 +1593,14 @@ export interface operations {
             };
         };
         responses: {
+            /** @description User updated successfully */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["UpdateUserResponse"];
+                };
             };
         };
     };
@@ -1546,12 +1613,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description List of unlinked Hackatime projects */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["HackatimeProjectsResponse"];
                 };
             };
         };
@@ -1561,18 +1629,20 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description Project ID */
+                id: number;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description List of linked Hackatime projects */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["HackatimeProjectsResponse"];
                 };
             };
         };
@@ -1586,12 +1656,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description List of all Hackatime projects */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["HackatimeProjectsResponse"];
                 };
             };
         };
@@ -1605,11 +1676,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Total Hackatime hours */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TotalNowHackatimeHoursResponse"];
+                };
             };
         };
     };
@@ -1622,11 +1696,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Total approved hours */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TotalApprovedHoursResponse"];
+                };
             };
         };
     };
@@ -1639,11 +1716,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Hours recalculated successfully */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["RecalculateHoursResponse"];
+                };
             };
         };
     };
@@ -1656,12 +1736,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Hackatime account status */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["HackatimeAccountStatusResponse"];
                 };
             };
         };
@@ -1673,13 +1754,20 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlackLinkDto"];
+            };
+        };
         responses: {
+            /** @description Slack account linked successfully */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["SlackLinkResponse"];
+                };
             };
         };
     };
@@ -1867,9 +1955,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["AuthCallbackResponse"];
-                };
+                content?: never;
             };
         };
     };

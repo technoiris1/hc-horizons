@@ -1,11 +1,9 @@
 import createClient from 'openapi-fetch';
 import type { paths } from './schema';
+import { env } from '$env/dynamic/public';
 
 const getBaseUrl = () => {
-	if (typeof window === 'undefined') {
-		return process.env.API_URL || 'http://localhost:3002';
-	}
-	return import.meta.env.VITE_API_URL || 'http://localhost:3002';
+	return env.PUBLIC_API_URL || 'http://localhost:3002';
 };
 
 export const api = createClient<paths>({
