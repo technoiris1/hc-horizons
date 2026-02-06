@@ -11,7 +11,7 @@ RUN pnpm --filter backend exec prisma generate
 COPY backend/src ./backend/src
 COPY backend/tsconfig*.json ./backend/
 COPY backend/nest-cli.json ./backend/
-RUN pnpm --filter backend run build
+RUN pnpm --filter backend run build && ls -la /app/backend/dist/
 
 FROM base AS deps
 WORKDIR /app
