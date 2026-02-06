@@ -17,11 +17,14 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-COPY --from=builder /app/frontend/build ./build
-COPY --from=builder /app/frontend/package.json ./
-COPY --from=builder /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/frontend/package.json ./frontend/
+COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
 
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --frozen-lockfile --filter frontend
+
+COPY --from=builder /app/frontend/build ./frontend/build
+
+WORKDIR /app/frontend
 
 ENV NODE_ENV=production
 ENV PORT=3000
