@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomBytes } from 'crypto';
@@ -12,7 +12,8 @@ export type UploadableFile = {
 
 @Injectable()
 export class UploadsService {
-  private readonly client: S3Client;
+  private readonly logger = new Logger(UploadsService.name);
+  private readonly client: S3Client | null;
   private readonly bucket: string;
   private readonly publicBaseUrl: string;
 
@@ -24,7 +25,9 @@ export class UploadsService {
     this.bucket = this.configService.get<string>('R2_BUCKET') ?? '';
     this.publicBaseUrl = this.normalizeBaseUrl(this.configService.get<string>('R2_PUBLIC_BASE_URL'));
     if (!endpoint || !accessKeyId || !secretAccessKey || !this.bucket) {
-      throw new Error('R2 configuration is incomplete');
+      this.logger.warn('R2 configuration is incomplete – file uploads will be disabled');
+      this.client = null;
+      return;
     }
     this.client = new S3Client({
       region,
@@ -38,6 +41,9 @@ export class UploadsService {
   }
 
   async uploadImage(file: UploadableFile) {
+    if (!this.client) {
+      throw new BadRequestException('File uploads are not configured');
+    }
     if (!file) {
       throw new BadRequestException('File is required');
     }

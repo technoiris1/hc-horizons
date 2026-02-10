@@ -8,6 +8,8 @@ import mjml2html from 'mjml';
 import { PrismaService } from '../prisma.service';
 import { JobLockService } from '../job-lock.service';
 
+// TODO: Create swappable Log/Loops Mailer
+
 @Injectable()
 export class MailService {
   // private transporter: nodemailer.Transporter;
