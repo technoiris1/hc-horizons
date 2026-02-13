@@ -5,9 +5,8 @@
 	import toolsImg from '$lib/assets/home/tools.png';
 	import exploreImg from '$lib/assets/home/explore.png';
 
-	import wasdSvg from '$lib/assets/home/wasd.svg';
-	import mouseSvg from '$lib/assets/home/mouse.svg';
 	import { page } from '$app/state';
+    import InputPrompt from '$lib/components/InputPrompt.svelte';
 
 	let disableAnimations = false;
 	let hideCirc = $state(page.url.searchParams.has('noanimate') || disableAnimations);
@@ -111,9 +110,9 @@
 	<div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
 		<div class="flex items-center gap-2.5 p-5 bg-[#f3e8d8] border-4 border-black rounded-[20px] shadow-[4px_4px_0px_0px_black] overflow-hidden">
 			<p class="font-cook text-[24px] font-semibold text-black m-0 shrink-0">USE</p>
-			<img src={wasdSvg} alt="WASD keys" class="w-[74px] h-12 shrink-0" />
+			<InputPrompt type="WASD" />
 			<p class="font-cook text-[24px] font-semibold text-black m-0 shrink-0">OR</p>
-			<img src={mouseSvg} alt="Mouse" class="h-12 shrink-0" />
+			<InputPrompt type="mouse" />
 			<p class="font-cook text-[24px] font-semibold text-black m-0 shrink-0">TO NAVIGATE</p>
 		</div>
 	</div>

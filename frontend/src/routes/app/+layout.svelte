@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { fly } from 'svelte/transition';
 	import { page } from '$app/state';
     import BG from '$lib/components/BG.svelte';
+	import SlideOut from '$lib/components/anim/SlideOut.svelte';
+	import { beforeNavigate, goto } from '$app/navigation';
 
 	let { children } = $props();
 
@@ -12,8 +13,6 @@
 	{#key page.url.pathname}
 		<div
 			class="page-transition"
-			in:fly={{ x: 1000, duration: 350 }}
-			out:fly={{ x: -1000, duration: 350 }}
 		>
 			{@render children()}
 		</div>

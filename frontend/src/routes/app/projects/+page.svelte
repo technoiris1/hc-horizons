@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import heroPlaceholder from '$lib/assets/projects/hero-placeholder.png';
-	import mouseScrollSvg from '$lib/assets/projects/mouse-scroll.svg';
     import { goto } from '$app/navigation';
+    import InputPrompt from '$lib/components/InputPrompt.svelte';
 
 	interface Project {
 		id: string;
@@ -141,22 +141,11 @@
 
 					{#if selected}
 						<div class="controls">
-							<div class="key-dark">
-								<svg width="14" height="12" viewBox="0 0 16 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-									<path d="M14 1V5C14 6.10457 13.1046 7 12 7H2M2 7L6 3M2 7L6 11" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-								</svg>
-								<span>ENTER</span>
-							</div>
+							<InputPrompt type="Enter" /> 
 
 							<span class="controls-text">OR</span>
 
-							<svg class="click-icon" width="28" height="32" viewBox="0 0 28 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-								<path d="M10 0L10 20L14.5 16L19 26L23 24.5L18.5 14.5L24 13L10 0Z" fill="black" stroke="black" stroke-width="1.5" stroke-linejoin="round"/>
-								<path d="M3 25L1 27" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
-								<path d="M0.5 17H3.5" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
-								<path d="M5 7L3 5" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
-								<path d="M20 5L18 7" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
-							</svg>
+							<InputPrompt type="click" /> 
 
 							<span class="controls-text">TO VIEW</span>
 						</div>
@@ -169,17 +158,16 @@
 
 	<!-- Back button -->
 	<button class="back-card" onclick={() => goto('/app?noanimate')}>
-		<div class="key-light key-esc">ESC</div>
+		<InputPrompt type="ESC" /> 
 		<span class="back-text">BACK</span>
 	</button>
 
 	<!-- Navigate hint -->
 	<div class="nav-hint">
 		<span class="nav-text">USE</span>
-		<div class="key-light key-letter">W</div>
-		<div class="key-light key-letter">S</div>
+		<InputPrompt type="WS" />
 		<span class="nav-text">OR</span>
-		<img src={mouseScrollSvg} alt="Mouse scroll" class="mouse-icon" />
+		<InputPrompt type="mouse-scroll" />
 		<span class="nav-text">TO NAVIGATE</span>
 	</div>
 </div>

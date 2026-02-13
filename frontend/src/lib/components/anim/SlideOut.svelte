@@ -8,10 +8,10 @@
     let { class: className = '', duration = 1200, angle = 15 }: Props = $props();
 </script>
 
-<div class="slide-out {className}" style="--duration: {duration}ms; --angle: {angle}deg"></div>
+<div class="slide-in-out {className}" style="--duration: {duration}ms; --angle: {angle}deg"></div>
 
 <style>
-    .slide-out {
+    .slide-in-out {
         position: fixed;
         inset: -50%;
         width: 300%;
@@ -27,15 +27,18 @@
         z-index: 100;
         pointer-events: none;
         transform: rotate(var(--angle)) translateX(-100%);
-        animation: slide-angle var(--duration) ease-out forwards;
+        animation: slide-in-out var(--duration) ease-in-out forwards;
     }
 
-    @keyframes slide-angle {
+    @keyframes slide-in-out {
         0% {
             transform: rotate(var(--angle)) translateX(-100%);
         }
+        50% {
+            transform: rotate(var(--angle)) translateX(0%);
+        }
         100% {
-            transform: rotate(var(--angle)) translateX(30%);
+            transform: rotate(var(--angle)) translateX(100%);
         }
     }
 </style>
