@@ -16,18 +16,16 @@
     import CircleOut from '$lib/components/anim/CircleOut.svelte';
     import { api } from '$lib/api';
     import { goto } from '$app/navigation';
-    import { parseNavKey, isNavKey, clampIndex } from '$lib/nav/wasd.svelte';
+    import { createListNav, parseNavKey, isNavKey, clampIndex, navState } from '$lib/nav/wasd.svelte';
 
     let activated = $state(false);
     let pressed = $state(false);
     let transitioning = $state(false);
     let isTransitioning = $state(false);
-    let selectedCard = $state(0);
     let selectedElement = $state(-1); // -1 = card itself, 0+ = index within focusable elements
     let cardRefs: HTMLElement[] = [];
     let isTyping = $state(false);
     let btnPressed = $state(false);
-    let usingKeyboard = $state(true); // Track if user is using keyboard navigation
     let showSlideOut = $state(false);
     let disableAnimations = $state(false);
     let animationsReady = $state(false);
@@ -127,6 +125,42 @@
 
     const transitionDuration = $derived(disableAnimations ? 0 : undefined);
 
+    const nav = createListNav({
+        count: () => 3,
+        onSelect: (index) => {
+            const elements = getFocusableElements(index);
+            if (isAuthed && index === 0) {
+                activateJoinNow('');
+            } else if (elements.length > 0) {
+                selectedElement = 0;
+                focusSelectedElement();
+            }
+        },
+    });
+
+    function handlePageKeydown(ev: KeyboardEvent) {
+        // Pre-activation: set keyboard mode on nav keys, only handle Enter
+        if (!activated) {
+            if (isNavKey(ev.key)) {
+                navState.usingKeyboard = true;
+            }
+            if (ev.key === 'Enter' && !isTransitioning) {
+                pressed = true;
+                setTimeout(() => {
+                    isTransitioning = true;
+                    setTimeout(showDetail, 400);
+                }, 150);
+            }
+            return;
+        }
+
+        // Guards for typing and element-level focus
+        if (isTyping) return;
+        if (selectedElement >= 0) return;
+
+        nav.handleKeydown(ev);
+    }
+
     function showDetail() {
         transitioning = true;
         activated = true;
@@ -144,7 +178,7 @@
     }
 
     function focusSelectedElement() {
-        const elements = getFocusableElements(selectedCard);
+        const elements = getFocusableElements(nav.selectedIndex);
         if (selectedElement >= 0 && selectedElement < elements.length) {
             elements[selectedElement]?.focus();
         } else {
@@ -154,7 +188,7 @@
 
     function handleElementFocus(ev: FocusEvent) {
         const target = ev.target as HTMLElement;
-        const elements = getFocusableElements(selectedCard);
+        const elements = getFocusableElements(nav.selectedIndex);
         const index = elements.indexOf(target);
         if (index >= 0) {
             selectedElement = index;
@@ -166,7 +200,7 @@
 
     function handleElementBlur(ev: FocusEvent) {
         isTyping = false;
-        const container = cardRefs[selectedCard];
+        const container = cardRefs[nav.selectedIndex];
         const relatedTarget = ev.relatedTarget as HTMLElement;
         if (!container?.contains(relatedTarget)) {
             selectedElement = -1;
@@ -174,7 +208,7 @@
     }
 
     function handleElementKeydown(ev: KeyboardEvent) {
-        const elements = getFocusableElements(selectedCard);
+        const elements = getFocusableElements(nav.selectedIndex);
         const isInput = (ev.target as HTMLElement).tagName === 'INPUT';
 
         if (isInput && ev.key !== 'Enter' && ev.key !== 'Tab' && ev.key !== 'Escape') {
@@ -201,7 +235,7 @@
             } else if (!ev.shiftKey) {
                 ev.preventDefault();
                 selectedElement = -1;
-                selectedCard = clampIndex(selectedCard + 1, 2);
+                nav.selectedIndex = clampIndex(nav.selectedIndex + 1, 2);
                 (document.activeElement as HTMLElement)?.blur();
             }
             return;
@@ -238,56 +272,18 @@
             }
         } else if (dir === 'left') {
             selectedElement = -1;
-            selectedCard = clampIndex(selectedCard - 1, 2);
+            nav.selectedIndex = clampIndex(nav.selectedIndex - 1, 2);
             (document.activeElement as HTMLElement)?.blur();
         } else if (dir === 'right') {
             selectedElement = -1;
-            selectedCard = clampIndex(selectedCard + 1, 2);
+            nav.selectedIndex = clampIndex(nav.selectedIndex + 1, 2);
             (document.activeElement as HTMLElement)?.blur();
         }
     }
 
-    onMount(() => {
-        window.onkeydown = (ev) => {
-            if (isNavKey(ev.key)) {
-                usingKeyboard = true;
-            }
-
-            if (!activated) {
-                if (ev.key === 'Enter' && !isTransitioning) {
-                    pressed = true;
-                    setTimeout(() => {
-                        isTransitioning = true;
-                        setTimeout(showDetail, 400);
-                    }, 150);
-                }
-                return;
-            }
-
-            if (isTyping) return;
-            if (selectedElement >= 0) return; // Let element handlers deal with it
-
-            const dir = parseNavKey(ev.key);
-            if (dir === 'up') {
-                selectedCard = clampIndex(selectedCard - 1, 2);
-                selectedElement = -1;
-            } else if (dir === 'down') {
-                selectedCard = clampIndex(selectedCard + 1, 2);
-                selectedElement = -1;
-            } else if (ev.key === 'Enter') {
-                const elements = getFocusableElements(selectedCard);
-                if (isAuthed && selectedCard === 0) {
-                    ev.preventDefault();
-                    activateJoinNow('');
-                } else if (elements.length > 0) {
-                    ev.preventDefault();
-                    selectedElement = 0;
-                    focusSelectedElement();
-                }
-            }
-        };
-    });
 </script>
+
+<svelte:window onkeydown={handlePageKeydown} />
 
 {#if !animationsReady}
     <div class="fixed inset-0 bg-black z-[9999]"></div>
@@ -303,13 +299,12 @@
         <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
         <div class="flex-1 flex flex-col justify-center absolute inset-0 cursor-pointer" onclick={() => {
             if (!isTransitioning) {
-                usingKeyboard = false;
+                navState.usingKeyboard = false;
                 pressed = true;
                 setTimeout(() => {
                     isTransitioning = true;
                     setTimeout(() => {
                         showDetail();
-                        selectedCard = -1;
                     }, 400);
                 }, 150);
             }
@@ -356,13 +351,13 @@
             </div>
 
             <div class="flex flex-col items-center gap-7 w-full px-10">                
-                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 500 }} bind:this={cardRefs[0]} onmouseenter={() => { if (!signupEmailFocused) { usingKeyboard = false; selectedCard = 0; } }}>
+                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 500 }} bind:this={cardRefs[0]} onmouseenter={() => { if (!signupEmailFocused) nav.select(0); }}>
                     {#if isAuthed}
-                        <MenuItem 
-                            title="SIGN BACK IN" 
+                        <MenuItem
+                            title="SIGN BACK IN"
                             subtitle="GET BACK TO WORKING ON YOUR PROJECTS!"
                             chevron
-                            selected={selectedCard === 0}
+                            selected={nav.selectedIndex === 0}
                             preserveIcon
                             {disableAnimations}
                             onclick={() => activateJoinNow('')}
@@ -372,18 +367,18 @@
                             {/snippet}
                         </MenuItem>
                     {:else}
-                        <MenuItem 
-                            title="JOIN NOW" 
+                        <MenuItem
+                            title="JOIN NOW"
                             subtitle="START WORKING ON YOUR PROJECTS!"
                             chevron
-                            selected={selectedCard === 0}
+                            selected={nav.selectedIndex === 0}
                             preserveIcon
                             {disableAnimations}
                             showSignup
                             bind:email={signupEmail}
                             bind:emailFocused={signupEmailFocused}
                             onSignup={activateJoinNow}
-                            signupHint={usingKeyboard ? "Press enter to enter your email" : "Click to enter your email"}
+                            signupHint={navState.usingKeyboard ? "Press enter to enter your email" : "Click to enter your email"}
                         >
                             {#snippet icon()}
                                 <img src={horizonIcon} alt="Watch" />
@@ -391,11 +386,11 @@
                         </MenuItem>
                     {/if}
                 </div>
-                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 600 }} bind:this={cardRefs[1]} onmouseenter={() => { if (!signupEmailFocused) { usingKeyboard = false; selectedCard = 1; } }}>
-                    <MenuItem 
-                        title="WHAT'S HORIZON?" 
+                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 600 }} bind:this={cardRefs[1]} onmouseenter={() => { if (!signupEmailFocused) nav.select(1); }}>
+                    <MenuItem
+                        title="WHAT'S HORIZON?"
                         subtitle="LEARN MORE ABOUT THE EVENT!"
-                        selected={selectedCard === 1}
+                        selected={nav.selectedIndex === 1}
                         preserveIcon
                         {disableAnimations}
                     >
@@ -404,11 +399,11 @@
                         {/snippet}
                     </MenuItem>
                 </div>
-                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 700 }} bind:this={cardRefs[2]} onmouseenter={() => { if (!signupEmailFocused) { usingKeyboard = false; selectedCard = 2; } }}>
-                    <MenuItem 
-                        title="WATCH THE VIDEO" 
+                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 700 }} bind:this={cardRefs[2]} onmouseenter={() => { if (!signupEmailFocused) nav.select(2); }}>
+                    <MenuItem
+                        title="WATCH THE VIDEO"
                         subtitle="SOMETHING SOMETHING SOMETHING IDK"
-                        selected={selectedCard === 2}
+                        selected={nav.selectedIndex === 2}
                         preserveIcon
                         {disableAnimations}
                     >

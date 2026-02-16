@@ -21,6 +21,37 @@ export function clampIndex(index: number, max: number): number {
 	return Math.max(0, Math.min(max, index));
 }
 
+/** Shared nav mode state across all nav instances, backed by sessionStorage. */
+const storedMode = typeof sessionStorage !== 'undefined'
+	? (sessionStorage.getItem('nav-mode') as 'keyboard' | 'mouse' | null)
+	: null;
+let navMode = $state<'keyboard' | 'mouse'>(storedMode ?? 'mouse');
+$effect.root(() => {
+	$effect(() => {
+		if (typeof sessionStorage !== 'undefined') {
+			sessionStorage.setItem('nav-mode', navMode);
+		}
+	});
+	$effect(() => {
+		if (typeof document !== 'undefined') {
+			document.body.style.cursor = navMode === 'keyboard' ? 'none' : '';
+		}
+	});
+	if (typeof window !== 'undefined') {
+		window.addEventListener('mousemove', () => {
+			if (navMode === 'keyboard') {
+				navMode = 'mouse';
+			}
+		});
+	}
+});
+
+/** Reactive accessor for the shared nav mode. */
+export const navState = {
+	get usingKeyboard() { return navMode === 'keyboard'; },
+	set usingKeyboard(v: boolean) { navMode = v ? 'keyboard' : 'mouse'; },
+};
+
 interface ListNavOptions {
 	/** Total number of items (reactive getter). */
 	count: () => number;
@@ -39,10 +70,10 @@ interface ListNavOptions {
 /**
  * Composable for 1D WASD list navigation.
  * Handles W/S + Arrow Up/Down, Enter, Escape, and optional wheel scroll.
+ * Switches between keyboard and mouse modes instead of handling both simultaneously.
  */
 export function createListNav(options: ListNavOptions) {
 	let selectedIndex = $state(options.initial ?? 0);
-	let usingKeyboard = $state(true);
 	let wheelAccumulator = 0;
 	const wheelThreshold = typeof options.wheel === 'number' ? options.wheel : 80;
 
@@ -52,11 +83,12 @@ export function createListNav(options: ListNavOptions) {
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (isNavKey(e.key)) {
-			usingKeyboard = true;
+		const dir = parseNavKey(e.key);
+
+		if (isNavKey(e.key) && navMode === 'mouse') {
+			navMode = 'keyboard';
 		}
 
-		const dir = parseNavKey(e.key);
 		if (dir === 'up') {
 			e.preventDefault();
 			move(-1);
@@ -84,17 +116,17 @@ export function createListNav(options: ListNavOptions) {
 		}
 	}
 
-	/** Select an index via mouse (sets usingKeyboard = false). */
+	/** Select an index via mouse (switches to mouse mode). */
 	function select(index: number) {
-		usingKeyboard = false;
+		navMode = 'mouse';
 		selectedIndex = index;
 	}
 
 	return {
 		get selectedIndex() { return selectedIndex; },
 		set selectedIndex(v: number) { selectedIndex = v; },
-		get usingKeyboard() { return usingKeyboard; },
-		set usingKeyboard(v: boolean) { usingKeyboard = v; },
+		get usingKeyboard() { return navMode === 'keyboard'; },
+		set usingKeyboard(v: boolean) { navMode = v ? 'keyboard' : 'mouse'; },
 		handleKeydown,
 		handleWheel,
 		select,
@@ -113,17 +145,19 @@ interface GridNavOptions {
 /**
  * Composable for 2D WASD grid navigation.
  * W/S moves within a column, A/D switches columns (clamping row to new column size).
+ * Switches between keyboard and mouse modes instead of handling both simultaneously.
  */
 export function createGridNav(options: GridNavOptions) {
 	let col = $state(0);
 	let row = $state(0);
-	let usingKeyboard = $state(true);
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (isNavKey(e.key)) usingKeyboard = true;
-
 		const dir = parseNavKey(e.key);
 		const cols = options.columns();
+
+		if (isNavKey(e.key) && navMode === 'mouse') {
+			navMode = 'keyboard';
+		}
 
 		if (dir === 'up') {
 			e.preventDefault();
@@ -146,9 +180,9 @@ export function createGridNav(options: GridNavOptions) {
 		}
 	}
 
-	/** Select a cell via mouse (sets usingKeyboard = false). */
+	/** Select a cell via mouse (switches to mouse mode). */
 	function select(c: number, r: number) {
-		usingKeyboard = false;
+		navMode = 'mouse';
 		col = c;
 		row = r;
 	}
@@ -162,8 +196,8 @@ export function createGridNav(options: GridNavOptions) {
 		set col(v: number) { col = v; },
 		get row() { return row; },
 		set row(v: number) { row = v; },
-		get usingKeyboard() { return usingKeyboard; },
-		set usingKeyboard(v: boolean) { usingKeyboard = v; },
+		get usingKeyboard() { return navMode === 'keyboard'; },
+		set usingKeyboard(v: boolean) { navMode = v ? 'keyboard' : 'mouse'; },
 		handleKeydown,
 		select,
 		isSelected,

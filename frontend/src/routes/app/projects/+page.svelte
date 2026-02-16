@@ -1,65 +1,36 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import heroPlaceholder from '$lib/assets/projects/hero-placeholder.png';
-    import { goto } from '$app/navigation';
-    import InputPrompt from '$lib/components/InputPrompt.svelte';
-    import { createListNav } from '$lib/nav/wasd.svelte';
+	import { goto } from '$app/navigation';
+	import InputPrompt from '$lib/components/InputPrompt.svelte';
+	import NavigationHint from '$lib/components/NavigationHint.svelte';
+	import TurbulentImage from '$lib/components/TurbulentImage.svelte';
+	import { createListNav } from '$lib/nav/wasd.svelte';
+	import { api, type components } from '$lib/api';
 
-	interface Project {
-		id: string;
-		title: string;
-		description: string;
-		hoursLogged: number;
-		image: string;
+	type ProjectResponse = components['schemas']['ProjectResponse'];
+
+	let projects = $state<ProjectResponse[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+
+	async function fetchProjects() {
+		loading = true;
+		error = null;
+		const { data, error: err } = await api.GET('/api/projects/auth');
+		if (err) {
+			error = 'Failed to load projects';
+		} else {
+			projects = (data as ProjectResponse[]) ?? [];
+		}
+		loading = false;
 	}
 
-	const projects: Project[] = [
-		{
-			id: '1',
-			title: 'TEST PROJECT 1',
-			description: 'Description',
-			hoursLogged: 12,
-			image: heroPlaceholder
-		},
-		{
-			id: '2',
-			title: 'TEST PROJECT 2',
-			description: 'Description',
-			hoursLogged: 8,
-			image: heroPlaceholder
-		},
-		{
-			id: '3',
-			title: 'TEST PROJECT 3',
-			description: 'Description',
-			hoursLogged: 3,
-			image: heroPlaceholder
-		},
-		{
-			id: '4',
-			title: 'TEST PROJECT 1',
-			description: 'Description',
-			hoursLogged: 12,
-			image: heroPlaceholder
-		},
-		{
-			id: '5',
-			title: 'TEST PROJECT 2',
-			description: 'Description',
-			hoursLogged: 8,
-			image: heroPlaceholder
-		},
-		{
-			id: '6',
-			title: 'TEST PROJECT 3',
-			description: 'Description',
-			hoursLogged: 3,
-			image: heroPlaceholder
-		}        
-	];
+	fetchProjects();
 
 	let scrollOffset = $state(0);
 	let listEl: HTMLDivElement;
+	let clickWasSelected = false;
 
 	const nav = createListNav({
 		count: () => projects.length + 1, // +1 for create project card
@@ -68,12 +39,11 @@
 		onEscape: () => goto('/app?noanimate'),
 		onSelect: (i) => {
 			if (i === projects.length) {
-				// Navigate to create project page
 				goto('/app/projects/new');
 			} else {
 				const project = projects[i];
 				if (project) {
-					// navigate to project detail
+					goto(`/app/projects/${project.projectId}`);
 				}
 			}
 		},
@@ -96,7 +66,7 @@
 
 	const selectedProject = $derived(
 		nav.selectedIndex === projects.length
-			? { id: 'new', title: 'New Project', description: '', hoursLogged: 0, image: heroPlaceholder }
+			? null
 			: projects[nav.selectedIndex]
 	);
 </script>
@@ -105,275 +75,105 @@
 
 <div class="relative size-full">
 	<!-- Hero image -->
-	<svg class="filters" aria-hidden="true">
-		<filter id="turbulence">
-			<feTurbulence type="turbulence" baseFrequency="0.01 0.02" numOctaves="2" seed="2" result="noise" />
-			<feColorMatrix type="hueRotate" values="0" result="rotatedNoise">
-				<animate attributeName="values" from="0" to="360" dur="5s" repeatCount="indefinite" />
-			</feColorMatrix>
-			<feDisplacementMap in="SourceGraphic" in2="rotatedNoise" scale="25" xChannelSelector="R" yChannelSelector="G" />
-		</filter>
-	</svg>
-	<div class="hero-image h-full">
-		<img src={selectedProject.image} alt={selectedProject.title} class="h-full" style="filter: url(#turbulence);" />
-	</div>
+	<TurbulentImage
+		src={selectedProject?.screenshotUrl ?? heroPlaceholder}
+		alt={selectedProject?.projectTitle ?? 'New Project'}
+		inset="0 -40% 0 40%"
+		zIndex={0}
+	/>
 
 	<!-- Scrollable project list -->
-	<div class="projects-scroll" role="listbox" tabindex="-1">
-		<div class="projects-list" bind:this={listEl} style="transform: translateY({scrollOffset}px)">
-			{#each projects as project, i (project.id)}
-				{@const selected = i === nav.selectedIndex}
+	<div class="absolute left-10.5 top-45 bottom-10 w-215 overflow-visible z-2" role="listbox" tabindex="-1">
+		<div class="flex flex-col gap-7.5" bind:this={listEl} style="transform: translateY({scrollOffset}px); transition: transform var(--juice-duration) var(--juice-easing);">
+			{#if loading}
+				<div class="project-card bg-[#f3e8d8] border-4 border-black rounded-[20px] p-7.5 shadow-[4px_4px_0px_0px_black] flex items-center justify-center" style="width: 649px;">
+					<p class="font-cook font-semibold text-black text-[40px] m-0 opacity-50">LOADING...</p>
+				</div>
+			{:else if error}
+				<div class="project-card bg-[#f3e8d8] border-4 border-black rounded-[20px] p-7.5 shadow-[4px_4px_0px_0px_black] flex items-center justify-center" style="width: 649px;">
+					<p class="font-cook font-semibold text-black text-[40px] m-0 opacity-50">{error}</p>
+				</div>
+			{:else}
+				{#each projects as project, i (project.projectId)}
+					{@const selected = i === nav.selectedIndex}
+					<button
+						class="project-card bg-[#f3e8d8] border-4 border-black rounded-[20px] p-7.5 shadow-[4px_4px_0px_0px_black] flex flex-col items-start overflow-hidden relative cursor-pointer text-left outline-none"
+						class:selected
+						onpointerdown={() => { clickWasSelected = nav.selectedIndex === i; }}
+						onfocus={() => { nav.selectedIndex = i; updateScroll(); }}
+						onclick={() => { if (clickWasSelected) { goto(`/app/projects/${project.projectId}`) } }}
+						style="width: {selected ? '824px' : '649px'}; background-color: {selected ? 'var(--selected-color)' : '#f3e8d8'}; gap: {selected ? '32px' : '0'}; transition: width var(--juice-duration) var(--juice-easing), background-color var(--selected-duration) ease, padding 0.3s ease;"
+					>
+						<div class="flex flex-col gap-1 z-1 w-full">
+							<p class="font-cook font-semibold text-black m-0 leading-[1.1] transition-[font-size_0.3s_ease]" style="font-size: {selected ? '64px' : '40px'};">{project.projectTitle}</p>
+							<p class="font-['Bricolage_Grotesque',sans-serif] font-semibold text-black m-0 transition-[font-size_0.3s_ease]" style="font-size: {selected ? '32px' : '20px'};">{project.description ?? ''}</p>
+							<p class="font-['Bricolage_Grotesque',sans-serif] font-semibold text-black m-0 transition-[font-size_0.3s_ease]" style="font-size: {selected ? '32px' : '20px'};">{project.approvedHours ?? 0} hours approved</p>
+						</div>
+
+						{#if selected}
+							<div class="flex items-center gap-2 z-1">
+								<InputPrompt type="Enter" />
+
+								<span class="font-['Bricolage_Grotesque',sans-serif] text-2xl font-bold text-black">OR</span>
+
+								<InputPrompt type="click" />
+
+								<span class="font-['Bricolage_Grotesque',sans-serif] text-2xl font-bold text-black">TO VIEW</span>
+							</div>
+						{/if}
+
+						</button>
+				{/each}
+
+				<!-- Create Project Card -->
 				<button
-					class="project-card"
-					class:selected
-					onclick={() => { nav.select(i); }}
+					class="project-card border-dashed bg-[#f3e8d8] border-4 border-black rounded-[20px] p-7.5 shadow-[4px_4px_0px_0px_black] flex flex-col items-start overflow-hidden relative cursor-pointer text-left outline-none"
+					class:selected={nav.selectedIndex === projects.length}
+					onpointerdown={() => { clickWasSelected = nav.selectedIndex === projects.length; }}
+					onfocus={() => { nav.selectedIndex = projects.length; updateScroll(); }}
+					onclick={() => { if (clickWasSelected) { goto('/app/projects/new'); } }}
+					style="width: {nav.selectedIndex === projects.length ? '824px' : '649px'}; background-color: {nav.selectedIndex === projects.length ? 'var(--selected-color)' : '#f3e8d8'}; gap: {nav.selectedIndex === projects.length ? '32px' : '0'}; transition: width var(--juice-duration) var(--juice-easing), background-color var(--selected-duration) ease, padding 0.3s ease;"
 				>
-					<div class="details">
-						<p class="title">{project.title}</p>
-						<p class="subtitle">{project.description}</p>
-						<p class="subtitle">{project.hoursLogged} hours logged</p>
+					<div class="flex flex-col gap-1 z-1 w-full">
+						<p class="font-cook font-semibold text-black m-0 leading-[1.1] opacity-70 transition-[font-size_0.3s_ease]" style="font-size: {nav.selectedIndex === projects.length ? '64px' : '40px'};">+ CREATE PROJECT</p>
 					</div>
 
-					{#if selected}
-						<div class="controls">
+					{#if nav.selectedIndex === projects.length}
+						<div class="flex items-center gap-2 z-1">
 							<InputPrompt type="Enter" />
 
-							<span class="controls-text">OR</span>
+							<span class="font-['Bricolage_Grotesque',sans-serif] text-2xl font-bold text-black">OR</span>
 
 							<InputPrompt type="click" />
 
-							<span class="controls-text">TO VIEW</span>
+							<span class="font-['Bricolage_Grotesque',sans-serif] text-2xl font-bold text-black">TO CREATE</span>
 						</div>
 					{/if}
-
-					</button>
-			{/each}
-
-			<!-- Create Project Card -->
-			<button
-				class="project-card create-card"
-				class:selected={nav.selectedIndex === projects.length}
-				onclick={() => { nav.select(projects.length); }}
-			>
-				<div class="details">
-					<p class="title">+ CREATE PROJECT</p>
-				</div>
-
-				{#if nav.selectedIndex === projects.length}
-					<div class="controls">
-						<InputPrompt type="Enter" />
-
-						<span class="controls-text">OR</span>
-
-						<InputPrompt type="click" />
-
-						<span class="controls-text">TO CREATE</span>
-					</div>
-				{/if}
-			</button>
+				</button>
+			{/if}
 		</div>
 	</div>
 
 	<!-- Back button -->
-	<button class="back-card" onclick={() => goto('/app?noanimate')}>
-		<InputPrompt type="ESC" /> 
-		<span class="back-text">BACK</span>
+	<button
+		class="absolute left-8 top-13 z-5 flex items-center gap-2.5 p-5 bg-[#f3e8d8] border-4 border-black rounded-[20px] shadow-[4px_4px_0px_0px_black] cursor-pointer overflow-hidden hover:bg-[#ffa936]"
+		onclick={() => goto('/app?noanimate')}
+		style="transition: background-color var(--selected-duration) ease, transform var(--juice-duration) var(--juice-easing);"
+		onmouseenter={(e) => e.currentTarget.style.transform = 'scale(var(--juice-scale))'}
+		onmouseleave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+	>
+		<InputPrompt type="ESC" />
+		<span class="font-cook text-2xl font-semibold text-black">BACK</span>
 	</button>
 
-	<!-- Navigate hint -->
-	<div class="nav-hint">
-		<span class="nav-text">USE</span>
-		<InputPrompt type="WS" />
-		<span class="nav-text">OR</span>
-		<InputPrompt type="mouse-scroll" />
-		<span class="nav-text">TO NAVIGATE</span>
-	</div>
+	<NavigationHint
+		segments={[
+			{ type: 'text', value: 'USE' },
+			{ type: 'input', value: 'WS' },
+			{ type: 'text', value: 'OR' },
+			{ type: 'input', value: 'mouse-scroll' },
+			{ type: 'text', value: 'TO NAVIGATE' }
+		]}
+		position="bottom-right"
+	/>
 </div>
-
-<style>
-	.filters {
-		position: absolute;
-		width: 0;
-		height: 0;
-		overflow: hidden;
-	}
-
-	/* Hero image */
-	.hero-image {
-		position: absolute;
-		inset: 0 -40% 0 40%;
-		overflow: visible;
-		z-index: 0;
-		pointer-events: none;
-	}
-
-	.hero-image img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		transform: scale(1.2);
-	}
-
-	/* Project list scroll area */
-	.projects-scroll {
-		position: absolute;
-		left: 42px;
-		top: 180px;
-		bottom: 40px;
-		width: 860px;
-		overflow: visible;
-		z-index: 2;
-	}
-
-	.projects-list {
-		display: flex;
-		flex-direction: column;
-		gap: 30px;
-		transition: transform var(--juice-duration) var(--juice-easing);
-	}
-
-	/* Project cards */
-	.project-card {
-		background-color: #f3e8d8;
-		border: 4px solid black;
-		border-radius: 20px;
-		padding: 30px;
-		box-shadow: 4px 4px 0px 0px black;
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		overflow: hidden;
-		position: relative;
-		width: 649px;
-		cursor: pointer;
-		text-align: left;
-		transition:
-			width var(--juice-duration) var(--juice-easing),
-			background-color var(--selected-duration) ease,
-			padding 0.3s ease;
-	}
-
-	.project-card.selected {
-		background-color: var(--selected-color);
-		width: 824px;
-		gap: 32px;
-	}
-
-	.create-card {
-		border-style: dashed;
-	}
-
-	.create-card .title {
-		opacity: 0.7;
-	}
-
-	/* Details */
-	.details {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		z-index: 1;
-		width: 100%;
-	}
-
-	.title {
-		font-family: 'Cook Widetype', sans-serif;
-		font-size: 40px;
-		font-weight: 600;
-		color: black;
-		margin: 0;
-		line-height: 1.1;
-		transition: font-size 0.3s ease;
-	}
-
-	.project-card.selected .title {
-		font-size: 64px;
-	}
-
-	.subtitle {
-		font-family: 'Bricolage Grotesque', sans-serif;
-		font-size: 20px;
-		font-weight: 600;
-		color: black;
-		margin: 0;
-		transition: font-size 0.3s ease;
-	}
-
-	.project-card.selected .subtitle {
-		font-size: 32px;
-	}
-
-	/* Controls (selected card only) */
-	.controls {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		z-index: 1;
-	}
-
-	.controls-text {
-		font-family: 'Bricolage Grotesque', sans-serif;
-		font-size: 24px;
-		font-weight: 700;
-		color: black;
-	}
-
-	/* Back button */
-	.back-card {
-		position: absolute;
-		left: 32px;
-		top: 52px;
-		z-index: 5;
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		padding: 20px;
-		background-color: #f3e8d8;
-		border: 4px solid black;
-		border-radius: 20px;
-		box-shadow: 4px 4px 0px 0px black;
-		cursor: pointer;
-		overflow: hidden;
-
-		transition: 
-			background-color var(--selected-duration) ease,
-			transform var(--juice-duration) var(--juice-easing);
-	}
-
-	.back-card:hover {
-		background-color: #ffa936;
-		transform: scale(var(--juice-scale));
-	}
-
-	.back-text {
-		font-family: 'Cook Widetype', sans-serif;
-		font-size: 24px;
-		font-weight: 600;
-		color: black;
-	}
-
-	/* Navigate hint */
-	.nav-hint {
-		position: absolute;
-		bottom: 35px;
-		right: 24px;
-		z-index: 5;
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		padding: 20px;
-		background-color: #f3e8d8;
-		border: 4px solid black;
-		border-radius: 20px;
-		box-shadow: 4px 4px 0px 0px black;
-		overflow: hidden;
-	}
-
-	.nav-text {
-		font-family: 'Cook Widetype', sans-serif;
-		font-size: 24px;
-		font-weight: 600;
-		color: black;
-		flex-shrink: 0;
-	}
-</style>

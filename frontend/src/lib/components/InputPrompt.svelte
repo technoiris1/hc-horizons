@@ -6,9 +6,10 @@
 	import mouseSvg from '$lib/assets/prompts/mouse.svg';
 	import mouseScrollSvg from '$lib/assets/prompts/mouse-scroll.svg';
 	import clickSvg from '$lib/assets/prompts/click.svg';
+	import type { InputPromptType } from '$lib/input';
 
     type InputPromptProps = {
-        type: 'WASD' | 'WS' | 'ESC' | 'Enter' | 'mouse' | 'mouse-scroll' | 'click'
+        type: InputPromptType
     };
 
     const { type }: InputPromptProps = $props();

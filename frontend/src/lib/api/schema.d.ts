@@ -495,6 +495,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get all approved projects */
         get: operations["ProjectsController_getApprovedProjects"];
         put?: never;
         post?: never;
@@ -511,6 +512,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get leaderboard */
         get: operations["ProjectsController_getLeaderboard"];
         put?: never;
         post?: never;
@@ -527,8 +529,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get current user projects */
         get: operations["ProjectsAuthController_getUserProjects"];
         put?: never;
+        /** Create a new project */
         post: operations["ProjectsAuthController_createProject"];
         delete?: never;
         options?: never;
@@ -543,9 +547,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get a specific project by ID */
         get: operations["ProjectsAuthController_getProject"];
+        /** Update a project (creates edit request if submitted) */
         put: operations["ProjectsAuthController_updateProject"];
         post?: never;
+        /** Delete a project (only if no submissions) */
         delete: operations["ProjectsAuthController_deleteProject"];
         options?: never;
         head?: never;
@@ -561,6 +568,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Submit a project for review */
         post: operations["ProjectsAuthController_createSubmission"];
         delete?: never;
         options?: never;
@@ -575,6 +583,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get submissions for a project */
         get: operations["ProjectsAuthController_getProjectSubmissions"];
         put?: never;
         post?: never;
@@ -591,7 +600,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get linked Hackatime projects for a project */
         get: operations["ProjectsAuthController_getHackatimeProjects"];
+        /** Update linked Hackatime projects */
         put: operations["ProjectsAuthController_updateHackatimeProjects"];
         post?: never;
         delete?: never;
@@ -1432,30 +1443,106 @@ export interface components {
         RafflePosResponse: {
             rafflePos: string | null;
         };
-        CreateProjectDto: {
+        ProjectResponse: {
+            /** @description Project ID */
+            projectId: number;
+            /** @description Project title */
             projectTitle: string;
-            /** @enum {string} */
+            /** @description Project description */
+            description?: string;
+            /** @description Screenshot URL */
+            screenshotUrl?: string;
+            /** @description Playable URL */
+            playableUrl?: string;
+            /** @description Repository URL */
+            repoUrl?: string;
+            /** @description Approved hours */
+            approvedHours?: number;
+            /** @description Creation timestamp */
+            createdAt: string;
+            /** @description Last update timestamp */
+            updatedAt: string;
+        };
+        LeaderboardEntry: {
+            /** @description User first name */
+            firstName: string;
+            /** @description Total Hackatime hours */
+            hours: number;
+            /** @description Total approved hours */
+            approved: number;
+        };
+        CreateProjectDto: {
+            /** @description Project title */
+            projectTitle: string;
+            /**
+             * @description Project type
+             * @enum {string}
+             */
             projectType: "personal_website" | "platformer_game" | "website" | "game" | "terminal_cli" | "desktop_app" | "mobile_app" | "wildcard";
+            /** @description Project description */
             projectDescription: string;
+            /** @description Playable URL for the project */
+            playableUrl?: string;
+            /** @description Repository URL */
+            repoUrl?: string;
+            /** @description Screenshot URL */
+            screenshotUrl?: string;
+            /** @description Linked Hackatime project names */
+            nowHackatimeProjects?: string[];
         };
         CreateSubmissionDto: {
+            /** @description ID of the project to submit */
             projectId: number;
         };
         UpdateProjectDto: {
+            /** @description Project title */
             projectTitle?: string;
+            /** @description Project description */
             description?: string;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description Playable URL for the project
+             */
             playableUrl?: string;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description Repository URL
+             */
             repoUrl?: string;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description Screenshot URL
+             */
             screenshotUrl?: string;
-            airtableRecId?: string;
+            /** @description Linked Hackatime project names */
             nowHackatimeProjects?: string[];
+            /** @description Reason for the edit request */
             editRequestReason?: string;
+            airtableRecId?: string;
+        };
+        ProjectMessageResponse: {
+            /** @description Response message */
+            message: string;
+            /** @description Updated project */
+            project: Record<string, never>;
         };
         UpdateHackatimeProjectsDto: {
+            /** @description List of Hackatime project names to link */
             projectNames: string[];
+        };
+        HackatimeProjectsInfoResponse: {
+            /** @description Project ID */
+            projectId: number;
+            /** @description Linked Hackatime project names */
+            hackatimeProjects?: string[];
+            /** @description Total Hackatime hours */
+            hackatimeHours?: number;
+        };
+        DeleteProjectResponse: {
+            /** @description Whether the project was deleted */
+            deleted: boolean;
+            /** @description Deleted project ID */
+            projectId: number;
         };
         UpdateSubmissionDto: {
             approvedHours?: number;
@@ -2152,18 +2239,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description List of approved projects */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"][];
+                };
             };
         };
     };
     ProjectsController_getLeaderboard: {
         parameters: {
-            query: {
-                sortBy: string;
+            query?: {
+                /** @description Sort leaderboard by hours or approved hours */
+                sortBy?: "hours" | "approved";
             };
             header?: never;
             path?: never;
@@ -2171,11 +2262,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Top 10 leaderboard entries */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["LeaderboardEntry"][];
+                };
             };
         };
     };
@@ -2188,13 +2282,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description List of user projects */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": Record<string, never>[];
-                };
+                content?: never;
             };
         };
     };
@@ -2211,6 +2304,13 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Project created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -2226,19 +2326,19 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ID */
                 id: number;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description Project details */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": Record<string, never>;
-                };
+                content?: never;
             };
         };
     };
@@ -2247,6 +2347,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ID */
                 id: number;
             };
             cookie?: never;
@@ -2257,12 +2358,13 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Project updated or edit request created */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["ProjectMessageResponse"];
                 };
             };
         };
@@ -2272,17 +2374,21 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ID */
                 id: number;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description Project deleted */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["DeleteProjectResponse"];
+                };
             };
         };
     };
@@ -2299,6 +2405,13 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Submission created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -2312,12 +2425,14 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ID */
                 id: number;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description List of project submissions */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2331,17 +2446,21 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ID */
                 id: number;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description Hackatime project info */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["HackatimeProjectsInfoResponse"];
+                };
             };
         };
     };
@@ -2350,6 +2469,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ID */
                 id: number;
             };
             cookie?: never;
@@ -2360,11 +2480,14 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Hackatime projects updated */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ProjectMessageResponse"];
+                };
             };
         };
     };

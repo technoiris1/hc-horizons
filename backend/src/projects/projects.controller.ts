@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Put, Delete, Body, Param, Req, ParseIntPipe, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -6,29 +7,46 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { UpdateHackatimeProjectsDto } from './dto/update-hackatime-projects.dto';
 import { Public } from '../auth/public.decorator';
+import {
+  ProjectResponse,
+  ProjectMessageResponse,
+  DeleteProjectResponse,
+  LeaderboardEntry,
+  HackatimeProjectsInfoResponse,
+} from './response';
 
+@ApiTags('Projects')
 @Controller('api/projects')
 @Public()
 export class ProjectsController {
   constructor(private projectsService: ProjectsService) {}
 
   @Get('approved')
+  @ApiOperation({ summary: 'Get all approved projects' })
+  @ApiOkResponse({ type: [ProjectResponse], description: 'List of approved projects' })
   async getApprovedProjects() {
     return this.projectsService.getApprovedProjects();
   }
 
   @Get('leaderboard')
+  @ApiOperation({ summary: 'Get leaderboard' })
+  @ApiQuery({ name: 'sortBy', required: false, enum: ['hours', 'approved'], description: 'Sort leaderboard by hours or approved hours' })
+  @ApiOkResponse({ type: [LeaderboardEntry], description: 'Top 10 leaderboard entries' })
   async getLeaderboard(@Query('sortBy') sortBy?: string) {
     const sortType = sortBy === 'approved' ? 'approved' : 'hours';
     return this.projectsService.getLeaderboard(sortType);
   }
 }
 
+@ApiTags('Projects (Auth)')
+@ApiBearerAuth()
 @Controller('api/projects/auth')
 export class ProjectsAuthController {
   constructor(private projectsService: ProjectsService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Create a new project' })
+  @ApiOkResponse({ description: 'Project created successfully' })
   async createProject(
     @Body() createProjectDto: CreateProjectDto,
     @Req() req: Request,
@@ -37,11 +55,16 @@ export class ProjectsAuthController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Get current user projects' })
+  @ApiOkResponse({ description: 'List of user projects' })
   async getUserProjects(@Req() req: Request) {
     return this.projectsService.getUserProjects(req.user.userId);
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get a specific project by ID' })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  @ApiOkResponse({ description: 'Project details' })
   async getProject(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: Request,
@@ -50,6 +73,8 @@ export class ProjectsAuthController {
   }
 
   @Post('submissions')
+  @ApiOperation({ summary: 'Submit a project for review' })
+  @ApiOkResponse({ description: 'Submission created successfully' })
   async createSubmission(
     @Body() createSubmissionDto: CreateSubmissionDto,
     @Req() req: Request,
@@ -58,6 +83,9 @@ export class ProjectsAuthController {
   }
 
   @Get(':id/submissions')
+  @ApiOperation({ summary: 'Get submissions for a project' })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  @ApiOkResponse({ description: 'List of project submissions' })
   async getProjectSubmissions(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: Request,
@@ -66,6 +94,9 @@ export class ProjectsAuthController {
   }
 
   @Put(':id')
+  @ApiOperation({ summary: 'Update a project (creates edit request if submitted)' })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  @ApiOkResponse({ type: ProjectMessageResponse, description: 'Project updated or edit request created' })
   async updateProject(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProjectDto: UpdateProjectDto,
@@ -75,6 +106,9 @@ export class ProjectsAuthController {
   }
 
   @Put(':id/hackatime-projects')
+  @ApiOperation({ summary: 'Update linked Hackatime projects' })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  @ApiOkResponse({ type: ProjectMessageResponse, description: 'Hackatime projects updated' })
   async updateHackatimeProjects(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateHackatimeProjectsDto: UpdateHackatimeProjectsDto,
@@ -84,6 +118,9 @@ export class ProjectsAuthController {
   }
 
   @Get(':id/hackatime-projects')
+  @ApiOperation({ summary: 'Get linked Hackatime projects for a project' })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  @ApiOkResponse({ type: HackatimeProjectsInfoResponse, description: 'Hackatime project info' })
   async getHackatimeProjects(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: Request,
@@ -92,6 +129,9 @@ export class ProjectsAuthController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete a project (only if no submissions)' })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  @ApiOkResponse({ type: DeleteProjectResponse, description: 'Project deleted' })
   async deleteProject(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: Request,
