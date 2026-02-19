@@ -10,21 +10,44 @@
 
 	let { text, duration = 2, delay = 0.04, amplitude = 2, disabled = false, offset = 0 }: Props = $props();
 
-	const chars = $derived(text.split(''));
+	// Group characters into words, preserving each char's global index for wave timing
+	function getWordGroups(t: string): { char: string; i: number }[][] {
+		const groups: { char: string; i: number }[][] = [];
+		let current: { char: string; i: number }[] = [];
+		for (let i = 0; i < t.length; i++) {
+			if (t[i] === ' ') {
+				if (current.length > 0) {
+					groups.push(current);
+					current = [];
+				}
+			} else {
+				current.push({ char: t[i], i });
+			}
+		}
+		if (current.length > 0) groups.push(current);
+		return groups;
+	}
+
+	const wordGroups = $derived(getWordGroups(text));
 </script>
 
 <span class="textwave" class:disabled>
-	{#each chars as char, i}
-		<span
-			class="wave-char"
-			style="--wave-delay: {(i + offset) * delay}s; --wave-duration: {duration}s; --wave-amplitude: {amplitude}px"
-		>{char === ' ' ? '\u00A0' : char}</span>
+	{#each wordGroups as word, wi}
+		{#if wi > 0}{' '}{/if}<span class="wave-word">{#each word as { char, i }}<span
+					class="wave-char"
+					style="--wave-delay: {(i + offset) * delay}s; --wave-duration: {duration}s; --wave-amplitude: {amplitude}px"
+				>{char}</span>{/each}</span>
 	{/each}
 </span>
 
 <style>
 	.textwave {
 		display: inline;
+	}
+
+	.wave-word {
+		display: inline-block;
+		white-space: nowrap;
 	}
 
 	.wave-char {

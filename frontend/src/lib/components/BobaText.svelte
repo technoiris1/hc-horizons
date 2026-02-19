@@ -61,7 +61,7 @@
         text;
         fontSize;
         measured = false;
-        updateWidth();
+        requestAnimationFrame(updateWidth);
     });
 </script>
 

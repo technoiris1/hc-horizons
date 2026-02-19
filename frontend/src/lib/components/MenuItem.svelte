@@ -101,17 +101,19 @@
         overflow: hidden;
         position: relative;
         height: 100px;
-        width: 944px;
-        transition: 
+        width: 100%;
+        max-width: 944px;
+        box-sizing: border-box;
+        transition:
             height var(--juice-duration) var(--juice-easing),
-            width var(--juice-duration) var(--juice-easing),
+            max-width var(--juice-duration) var(--juice-easing),
             background-color var(--selected-duration) ease;
      }
 
     .menu-item.selected {
         background-color: var(--selected-color);
         height: 220px;
-        width: 1049px;
+        max-width: 1049px;
     }
 
     .content {
@@ -232,7 +234,7 @@
         font-weight: 600;
         color: rgba(0, 0, 0, 0.5);
         outline: none;
-        width: 280px;
+        width: min(280px, 100%);
     }
 
     .email-input::placeholder {
@@ -300,5 +302,39 @@
     @keyframes blink {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.3; }
+    }
+
+    @media (max-width: 640px) {
+        .menu-item {
+            height: 72px;
+            padding: 14px 20px;
+            border-radius: 14px;
+        }
+
+        .menu-item.selected {
+            height: 190px;
+        }
+
+        .title {
+            font-size: 28px;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            margin-top: 8px;
+        }
+
+        .subtitle.visible {
+            max-height: 28px;
+        }
+
+        .signup.visible {
+            max-height: 44px;
+        }
+
+        .icon {
+            width: 44px;
+            height: 44px;
+        }
     }
 </style>

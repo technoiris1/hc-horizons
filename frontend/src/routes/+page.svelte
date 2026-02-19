@@ -29,6 +29,8 @@
     let showSlideOut = $state(false);
     let disableAnimations = $state(false);
     let animationsReady = $state(false);
+    let windowWidth = $state(0);
+    let isMobile = $derived(windowWidth > 0 && windowWidth < 640);
 
     let isAuthed = $state(false);
 
@@ -283,7 +285,7 @@
 
 </script>
 
-<svelte:window onkeydown={handlePageKeydown} />
+<svelte:window onkeydown={handlePageKeydown} bind:innerWidth={windowWidth} />
 
 {#if !animationsReady}
     <div class="fixed inset-0 bg-black z-[9999]"></div>
@@ -309,14 +311,14 @@
                 }, 150);
             }
         }}>
-            <div class="flex flex-col items-center justify-center px-16 pb-4">
+            <div class="flex flex-col items-center justify-center px-4 sm:px-16 pb-4">
                 <div out:captureLogoRect>
                     <img src={Logo} alt="Hack Club Horizon" class="w-full max-w-7xl" />
                 </div>
             </div>
             {#if !isTransitioning}
                 <!-- <p class="text-black font-cook text-center text-4xl tracking-widest mt-2 mb-4" out:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 100 }}>300+ PERSON HACKATHON IN SF • DATE XX-XX</p> -->
-                <p class="text-black font-cook text-center text-4xl tracking-widest mt-2 mb-6" out:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 100 }}><TextWave text="300+ PERSON HACKATHON IN SF • DATE XX-XX" duration={2} disabled={disableAnimations} /></p>
+                <p class="text-black font-cook text-center text-xl sm:text-4xl tracking-wide sm:tracking-widest mt-2 mb-6" out:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 100 }}><TextWave text="HIGH SCHOOL FLAGSHIP HACKATHONS ACROSS THE WORLD" duration={2} disabled={disableAnimations} /></p>
             {/if}
 
             <div out:captureStripesRect>
@@ -324,8 +326,8 @@
             </div>
 
             {#if !isTransitioning}
-                <div class="flex flex-col items-center justify-center px-16 mt-8" out:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 100 }}>
-                    <BobaButton text="> CLICK  OR  PRESS  ENTER" fallbackWidth={360} {pressed} className="select-none" wave {disableAnimations} />
+                <div class="flex flex-col items-center justify-center px-4 sm:px-16 mt-8" out:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 100 }}>
+                    <BobaButton text={isMobile ? "> TAP  TO  START" : "> CLICK  OR  PRESS  ENTER"} fontSize={isMobile ? 22 : 32} fallbackWidth={isMobile ? 186 : 360} {pressed} className="select-none" wave {disableAnimations} />
                 </div>
             {/if}
         </div>
@@ -336,22 +338,22 @@
         </label>
     {/if}
     {#if activated}
-        <div class="flex flex-col h-full items-center gap-8 pb-8">
+        <div class="flex flex-col h-full items-center gap-4 sm:gap-8 pb-8">
             <div class="flex flex-col w-full">
-                <div class="flex gap-4 items-end px-10 pt-10 pb-3">
+                <div class="flex gap-2 sm:gap-4 items-center sm:items-end px-4 sm:px-10 pt-6 sm:pt-10 pb-3">
                     <div in:animateLogoIn>
-                        <img src={Logo} alt="Hack Club Horizon" class="h-24" />
+                        <img src={Logo} alt="Hack Club Horizon" class="h-14 sm:h-24" />
                     </div>
                     <!-- <p in:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 200 }} class="tagline"><TextWave text="HACK CLUB'S " disabled={disableAnimations} /><span class="underline"><TextWave text="BIGGEST" disabled={disableAnimations} offset={12} /></span><TextWave text=" EVENT" disabled={disableAnimations} offset={19} /></p> -->
-                    <p in:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 200 }} class="tagline"><TextWave text="300+ PERSON HACKATHON IN SF • DATE XX-XX" disabled={disableAnimations} /></p>
+                    <p in:fade={{ duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 200 }} class="tagline hidden sm:block"><TextWave text="300+ PERSON HACKATHON IN SF • DATE XX-XX" disabled={disableAnimations} /></p>
                 </div>
                 <div in:animateStripesIn>
                     <Stripes small {disableAnimations} />
                 </div>
             </div>
 
-            <div class="flex flex-col items-center gap-7 w-full px-10">                
-                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 500 }} bind:this={cardRefs[0]} onmouseenter={() => { if (!signupEmailFocused) nav.select(0); }}>
+            <div class="flex flex-col items-center gap-4 sm:gap-7 w-full px-4 sm:px-10">                
+                <div class="w-full flex justify-center" in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 500 }} bind:this={cardRefs[0]} onmouseenter={() => { if (!signupEmailFocused) nav.select(0); }}>
                     {#if isAuthed}
                         <MenuItem
                             title="SIGN BACK IN"
@@ -374,11 +376,12 @@
                             selected={nav.selectedIndex === 0}
                             preserveIcon
                             {disableAnimations}
-                            showSignup
+                            showSignup={!isMobile}
                             bind:email={signupEmail}
                             bind:emailFocused={signupEmailFocused}
                             onSignup={activateJoinNow}
                             signupHint={navState.usingKeyboard ? "Press enter to enter your email" : "Click to enter your email"}
+                            onclick={isMobile ? () => activateJoinNow('') : undefined}
                         >
                             {#snippet icon()}
                                 <img src={horizonIcon} alt="Watch" />
@@ -386,9 +389,9 @@
                         </MenuItem>
                     {/if}
                 </div>
-                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 600 }} bind:this={cardRefs[1]} onmouseenter={() => { if (!signupEmailFocused) nav.select(1); }}>
+                <div class="w-full flex justify-center" in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 600 }} bind:this={cardRefs[1]} onmouseenter={() => { if (!signupEmailFocused) nav.select(1); }}>
                     <MenuItem
-                        title="WHAT'S HORIZON?"
+                        title="WHAT'S HORIZONS?"
                         subtitle="LEARN MORE ABOUT THE EVENT!"
                         selected={nav.selectedIndex === 1}
                         preserveIcon
@@ -399,7 +402,7 @@
                         {/snippet}
                     </MenuItem>
                 </div>
-                <div in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 700 }} bind:this={cardRefs[2]} onmouseenter={() => { if (!signupEmailFocused) nav.select(2); }}>
+                <div class="w-full flex justify-center" in:fly={{ x: disableAnimations ? 0 : 50, duration: disableAnimations ? 0 : 400, delay: disableAnimations ? 0 : 700 }} bind:this={cardRefs[2]} onmouseenter={() => { if (!signupEmailFocused) nav.select(2); }}>
                     <MenuItem
                         title="WATCH THE VIDEO"
                         subtitle="SOMETHING SOMETHING SOMETHING IDK"
@@ -414,7 +417,7 @@
                 </div>
             </div>
 
-            <div in:fly={{ y: disableAnimations ? 0 : 20, duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 800 }} class="flex justify-center absolute bottom-4 left-0 right-0">
+            <div in:fly={{ y: disableAnimations ? 0 : 20, duration: disableAnimations ? 0 : 300, delay: disableAnimations ? 0 : 800 }} class="hidden sm:flex justify-center absolute bottom-4 left-0 right-0">
                 <BobaText text="USE  WASD  OR  YOUR  MOUSE" fontSize={30} wave {disableAnimations} />
             </div>
 
@@ -451,7 +454,7 @@
 
     .tagline {
         font-family: 'Cook Widetype', sans-serif;
-        font-size: 32px;
+        font-size: clamp(16px, 2.5vw, 32px);
         font-weight: 600;
         color: black;
         margin: 0;
