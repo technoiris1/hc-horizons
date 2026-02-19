@@ -52,104 +52,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/user": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update current user profile */
-        put: operations["UserController_updateUser"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/user/slack/link": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Link Slack account with token */
-        post: operations["UserController_linkSlackAccount"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["AdminController_requestLogin"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/verify-otp": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["AdminController_verifyOtp"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["AdminController_logout"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/session": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["AdminController_checkSession"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/admin/dashboard/email-jobs": {
         parameters: {
             query?: never;
@@ -176,22 +78,6 @@ export interface paths {
         get: operations["DashboardController_getStats"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/slack/commands": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["SlackController_handleSlashCommand"];
         delete?: never;
         options?: never;
         head?: never;
@@ -328,6 +214,23 @@ export interface paths {
         get: operations["AuthController_getRafflePos"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/user/auth/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Get re-login URL to force sync user data from HCA */
+        post: operations["AuthController_syncHcaData"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1246,53 +1149,6 @@ export interface components {
             rafflePosition?: number;
             stickerToken?: string;
         };
-        UpdateUserDto: {
-            /** @description User first name */
-            firstName?: string;
-            /** @description User last name */
-            lastName?: string;
-            /** @description User birthday in ISO format */
-            birthday?: string;
-            /** @description Address line 1 */
-            addressLine1?: string;
-            /** @description Address line 2 */
-            addressLine2?: string;
-            /** @description City */
-            city?: string;
-            /** @description State or province */
-            state?: string;
-            /** @description Country */
-            country?: string;
-            /** @description Zip or postal code */
-            zipCode?: string;
-            /** @description Airtable record ID */
-            airtableRecId?: string;
-        };
-        UpdateUserResponse: {
-            /** @description Whether the update was successful */
-            success: boolean;
-            /** @description Response message */
-            message: string;
-        };
-        SlackLinkDto: {
-            /** @description Slack linking token */
-            token: string;
-        };
-        SlackLinkResponse: {
-            /** @description Whether linking was successful */
-            success: boolean;
-            /** @description Response message */
-            message: string;
-        };
-        AdminLoginDto: {
-            /** Format: email */
-            email: string;
-        };
-        AdminVerifyOtpDto: {
-            /** Format: email */
-            email: string;
-            otpCode: string;
-        };
         AuthUrlResponse: {
             /** @description HCA OAuth authorization URL */
             url: string;
@@ -1615,134 +1471,6 @@ export interface operations {
             };
         };
     };
-    UserController_updateUser: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateUserDto"];
-            };
-        };
-        responses: {
-            /** @description User updated successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UpdateUserResponse"];
-                };
-            };
-        };
-    };
-    UserController_linkSlackAccount: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SlackLinkDto"];
-            };
-        };
-        responses: {
-            /** @description Slack account linked successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SlackLinkResponse"];
-                };
-            };
-        };
-    };
-    AdminController_requestLogin: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminLoginDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AdminController_verifyOtp: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminVerifyOtpDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AdminController_logout: {
-        parameters: {
-            query?: never;
-            header: {
-                cookie: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AdminController_checkSession: {
-        parameters: {
-            query?: never;
-            header: {
-                cookie: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     DashboardController_getEmailJobs: {
         parameters: {
             query: {
@@ -1786,26 +1514,6 @@ export interface operations {
                 content: {
                     "application/json": Record<string, never>;
                 };
-            };
-        };
-    };
-    SlackController_handleSlashCommand: {
-        parameters: {
-            query?: never;
-            header: {
-                "x-slack-signature": string;
-                "x-slack-request-timestamp": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -1977,6 +1685,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RafflePosResponse"];
+                };
+            };
+        };
+    };
+    AuthController_syncHcaData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthUrlResponse"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthUrlResponse"];
                 };
             };
         };
