@@ -72,6 +72,7 @@ model Project {
   screenshotUrl      String?      @map("screenshot_url")
   isLocked           Boolean      @default(false) @map("is_locked")
   isFraud             Boolean      @default(false) @map("is_fraud")
+  adminComment       String?      @map("admin_comment") @db.VarChar(1000)
   user               User         @relation(fields: [userId], references: [userId], onDelete: Cascade)
   submissions        Submission[]
   @@index([userId])
@@ -94,9 +95,26 @@ model Submission {
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
   project          Project        @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
+  auditLogs        SubmissionAuditLog[]
 
   @@index([projectId])
   @@map("submissions")
+}
+
+model SubmissionAuditLog {
+  id              Int            @id @default(autoincrement())
+  submissionId    Int            @map("submission_id")
+  adminId         Int            @map("admin_id")
+  action          String         // "review" or "update"
+  newStatus       String?        @map("new_status") // "approved", "rejected", or null for non-status updates
+  approvedHours   Float?         @map("approved_hours")
+  changes         Json?          // snapshot of fields changed
+  createdAt       DateTime       @default(now()) @map("created_at")
+  submission      Submission     @relation(fields: [submissionId], references: [submissionId], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@index([adminId])
+  @@map("submission_audit_logs")
 }
 
 model UserSession {

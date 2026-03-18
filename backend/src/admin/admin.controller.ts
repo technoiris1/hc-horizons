@@ -17,6 +17,13 @@ export class AdminController {
     return this.adminService.getAllSubmissions();
   }
 
+  @Get('submissions/:id/audit-logs')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Admin)
+  async getSubmissionAuditLogs(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.getSubmissionAuditLogs(id);
+  }
+
   @Put('submissions/:id')
   @UseGuards(RolesGuard)
   @Roles(Role.Admin)
@@ -47,6 +54,13 @@ export class AdminController {
     @Req() req: Request,
   ) {
     return this.adminService.unlockProject(id, req.user.userId);
+  }
+
+  @Get('projects/:id/timeline')
+  @UseGuards(RolesGuard)
+  @Roles(Role.Admin)
+  async getProjectTimeline(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.getProjectTimeline(id);
   }
 
   @Get('projects')

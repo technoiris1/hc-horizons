@@ -124,6 +124,26 @@ export class AdminService {
       },
     });
 
+    // Create audit log entry
+    const isReview = updateSubmissionDto.approvalStatus !== undefined;
+    const auditChanges: Record<string, any> = {};
+    if (updateSubmissionDto.approvalStatus !== undefined) auditChanges.previousStatus = submission.approvalStatus;
+    if (updateSubmissionDto.approvedHours !== undefined) auditChanges.approvedHours = updateSubmissionDto.approvedHours;
+    if (updateSubmissionDto.userFeedback !== undefined) auditChanges.userFeedback = updateSubmissionDto.userFeedback;
+    if (updateSubmissionDto.hoursJustification !== undefined) auditChanges.hoursJustification = updateSubmissionDto.hoursJustification;
+    if (updateSubmissionDto.adminComment !== undefined) auditChanges.adminComment = updateSubmissionDto.adminComment;
+
+    await this.prisma.submissionAuditLog.create({
+      data: {
+        submissionId,
+        adminId: adminUserId,
+        action: isReview ? 'review' : 'update',
+        newStatus: updateSubmissionDto.approvalStatus || null,
+        approvedHours: updateSubmissionDto.approvedHours ?? null,
+        changes: auditChanges,
+      },
+    });
+
     // Sync data to the project table
     const projectUpdateData: any = {};
     if (updateSubmissionDto.approvedHours !== undefined) {
@@ -133,6 +153,9 @@ export class AdminService {
     // We store it in the project table for admin reference and Airtable sync only
     if (updateSubmissionDto.hoursJustification !== undefined) {
       projectUpdateData.hoursJustification = updateSubmissionDto.hoursJustification;
+    }
+    if (updateSubmissionDto.adminComment !== undefined) {
+      projectUpdateData.adminComment = updateSubmissionDto.adminComment;
     }
     if (updateSubmissionDto.approvalStatus === 'approved') {
       // When approving, update project with submission data
@@ -327,6 +350,24 @@ export class AdminService {
               },
             },
           },
+        },
+      },
+    });
+
+    // Create audit log entry for quick approve
+    await this.prisma.submissionAuditLog.create({
+      data: {
+        submissionId,
+        adminId: adminUserId,
+        action: 'review',
+        newStatus: 'approved',
+        approvedHours,
+        changes: {
+          previousStatus: submission.approvalStatus,
+          quickApprove: true,
+          approvedHours,
+          hoursJustification: adminHoursJustification,
+          userFeedback: userFeedback || null,
         },
       },
     });
@@ -1130,5 +1171,181 @@ export class AdminService {
       potentialHoursIfApproved: Number(user.potential_hours_if_approved),
       reason: user.reason,
     }));
+  }
+
+  async getSubmissionAuditLogs(submissionId: number) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { submissionId },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Submission not found');
+    }
+
+    const logs = await this.prisma.submissionAuditLog.findMany({
+      where: { submissionId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Resolve admin user info
+    const adminIds = [...new Set(logs.map(l => l.adminId))];
+    const admins = await this.prisma.user.findMany({
+      where: { userId: { in: adminIds } },
+      select: { userId: true, firstName: true, lastName: true, email: true },
+    });
+    const adminMap = new Map(admins.map(a => [a.userId, a]));
+
+    return logs.map(log => ({
+      ...log,
+      admin: adminMap.get(log.adminId) || null,
+    }));
+  }
+
+  async getProjectTimeline(projectId: number) {
+    const project = await this.prisma.project.findUnique({
+      where: { projectId },
+      include: {
+        user: {
+          select: { userId: true, firstName: true, lastName: true, email: true },
+        },
+        submissions: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            auditLogs: {
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    type TimelineEvent = {
+      type: 'project_created' | 'submission' | 'resubmission' | 'project_updated' | 'admin_review' | 'admin_update';
+      timestamp: Date;
+      actor: { userId: number; firstName: string | null; lastName: string | null; email: string } | null;
+      details: Record<string, any>;
+    };
+
+    const events: TimelineEvent[] = [];
+
+    // 1. Project creation
+    events.push({
+      type: 'project_created',
+      timestamp: project.createdAt,
+      actor: project.user,
+      details: {
+        projectTitle: project.projectTitle,
+        projectType: project.projectType,
+      },
+    });
+
+    // Resolve all admin IDs from audit logs + reviewedBy fields upfront
+    const allAuditLogs = project.submissions.flatMap(s => s.auditLogs);
+    const adminIds = new Set(allAuditLogs.map(l => l.adminId));
+    for (const sub of project.submissions) {
+      if (sub.reviewedBy) {
+        const parsed = parseInt(sub.reviewedBy);
+        if (!isNaN(parsed)) adminIds.add(parsed);
+      }
+    }
+    const adminIdArray = [...adminIds];
+    const admins = adminIdArray.length > 0
+      ? await this.prisma.user.findMany({
+          where: { userId: { in: adminIdArray } },
+          select: { userId: true, firstName: true, lastName: true, email: true },
+        })
+      : [];
+    const adminMap = new Map(admins.map(a => [a.userId, a]));
+
+    // 2. Submissions & 3. User project detail changes (diff between submissions)
+    for (let i = 0; i < project.submissions.length; i++) {
+      const submission = project.submissions[i];
+      const isFirst = i === 0;
+
+      events.push({
+        type: isFirst ? 'submission' : 'resubmission',
+        timestamp: submission.createdAt,
+        actor: project.user,
+        details: {
+          submissionId: submission.submissionId,
+          playableUrl: submission.playableUrl,
+          repoUrl: submission.repoUrl,
+          screenshotUrl: submission.screenshotUrl,
+          description: submission.description,
+          hackatimeHours: submission.hackatimeHours,
+        },
+      });
+
+      // Detect changes between this submission and the previous one
+      if (!isFirst) {
+        const prev = project.submissions[i - 1];
+        const changedFields: Record<string, { from: any; to: any }> = {};
+        for (const field of ['playableUrl', 'repoUrl', 'screenshotUrl', 'description'] as const) {
+          if (submission[field] !== prev[field]) {
+            changedFields[field] = { from: prev[field], to: submission[field] };
+          }
+        }
+        if (Object.keys(changedFields).length > 0) {
+          events.push({
+            type: 'project_updated',
+            timestamp: submission.createdAt,
+            actor: project.user,
+            details: {
+              submissionId: submission.submissionId,
+              changedFields,
+            },
+          });
+        }
+      }
+
+      // 4. Admin audit log entries for this submission
+      for (const log of submission.auditLogs) {
+        events.push({
+          type: log.action === 'review' ? 'admin_review' : 'admin_update',
+          timestamp: log.createdAt,
+          actor: adminMap.get(log.adminId) || null,
+          details: {
+            submissionId: submission.submissionId,
+            auditLogId: log.id,
+            action: log.action,
+            newStatus: log.newStatus,
+            approvedHours: log.approvedHours,
+            changes: log.changes,
+          },
+        });
+      }
+
+      // Fallback: if submission was reviewed but has no audit log review entries,
+      // synthesize one from the submission's own reviewedBy/reviewedAt fields
+      const hasAuditReview = submission.auditLogs.some(l => l.action === 'review');
+      if (!hasAuditReview && submission.reviewedBy && submission.reviewedAt) {
+        const reviewerAdminId = parseInt(submission.reviewedBy);
+        events.push({
+          type: 'admin_review',
+          timestamp: submission.reviewedAt,
+          actor: !isNaN(reviewerAdminId) ? (adminMap.get(reviewerAdminId) || null) : null,
+          details: {
+            submissionId: submission.submissionId,
+            newStatus: submission.approvalStatus,
+            approvedHours: submission.approvedHours,
+            legacy: true,
+          },
+        });
+      }
+    }
+
+    // Sort all events chronologically
+    events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+    return {
+      projectId: project.projectId,
+      projectTitle: project.projectTitle,
+      user: project.user,
+      timeline: events,
+    };
   }
 }
